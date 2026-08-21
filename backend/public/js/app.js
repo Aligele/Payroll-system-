@@ -75,6 +75,7 @@ $$('.nav-link').forEach((btn) => {
     $$('.panel').forEach((p) => p.classList.add('hidden'));
     $(`#panel-${btn.dataset.view}`).classList.remove('hidden');
     if (btn.dataset.view === 'history') loadHistory();
+    if (btn.dataset.view === 'p9') loadP9EmployeeOptions();
   });
 });
 
@@ -232,6 +233,7 @@ async function loadRunDetail(runId) {
 /* ---------------- Payslip receipt ---------------- */
 
 function openPayslip(p) {
+  currentPayslipId = p.id;
   $('#payslip-content').innerHTML = `
     <div class="payslip">
       <div class="payslip-header">${p.first_name} ${p.last_name}</div>
@@ -261,6 +263,66 @@ function openPayslip(p) {
   $('#payslip-modal').classList.remove('hidden');
 }
 $('#payslip-close').addEventListener('click', () => $('#payslip-modal').classList.add('hidden'));
+
+let currentPayslipId = null;
+$('#payslip-download').addEventListener('click', async () => {
+  if (!currentPayslipId) return;
+  try {
+    await downloadFile(`/payroll/payslips/${currentPayslipId}/pdf`, 'payslip.pdf');
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+/* ---------------- Authenticated file downloads ---------------- */
+
+async function downloadFile(path, fallbackFilename) {
+  const res = await fetch(API + path, { headers: { Authorization: `Bearer ${state.token}` } });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Download failed');
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get('Content-Disposition') || '';
+  const match = disposition.match(/filename="([^"]+)"/);
+  const filename = match ? match[1] : fallbackFilename;
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------------- P9 forms ---------------- */
+
+async function loadP9EmployeeOptions() {
+  const employees = await api('/employees');
+  const select = $('#p9-employee');
+  select.innerHTML = '';
+  employees.forEach((emp) => {
+    const opt = document.createElement('option');
+    opt.value = emp.id;
+    opt.textContent = `${emp.first_name} ${emp.last_name} (${emp.employee_no})`;
+    select.appendChild(opt);
+  });
+}
+$('#p9-year').value = now.getFullYear();
+
+$('#p9-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const employeeId = $('#p9-employee').value;
+  const year = $('#p9-year').value;
+  $('#p9-error').textContent = '';
+  try {
+    await downloadFile(`/payroll/employees/${employeeId}/p9/${year}`, `P9-${year}.pdf`);
+  } catch (err) {
+    $('#p9-error').textContent = err.message;
+  }
+});
 
 /* ---------------- Boot ---------------- */
 

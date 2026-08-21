@@ -38,6 +38,7 @@
       <button class="nav-link active" data-view="employees">Employees</button>
       <button class="nav-link" data-view="run-payroll">Run payroll</button>
       <button class="nav-link" data-view="history">Payroll history</button>
+      <button class="nav-link" data-view="p9">P9 forms</button>
     </nav>
     <div class="sidebar-footer">
       <div id="user-name" class="user-name"></div>
@@ -95,6 +96,28 @@
       <div id="run-detail"></div>
     </section>
 
+    <!-- P9 FORMS -->
+    <section id="panel-p9" class="panel hidden">
+      <div class="panel-head">
+        <h2>P9 forms</h2>
+      </div>
+      <p class="muted">
+        Generates a Tax Deduction Card (P9) for one employee's full year, built from their payroll
+        records. This is a computed summary for your records — reconcile against what you actually
+        filed on iTax before handing it to the employee.
+      </p>
+      <form id="p9-form" class="inline-form">
+        <label>Employee
+          <select id="p9-employee"></select>
+        </label>
+        <label>Year
+          <input type="number" id="p9-year" min="2020" max="2100" />
+        </label>
+        <button type="submit" class="btn btn-primary">Download P9 PDF</button>
+      </form>
+      <p class="form-error" id="p9-error"></p>
+    </section>
+
   </main>
 </div>
 
@@ -128,6 +151,7 @@
     <div id="payslip-content"></div>
     <div class="modal-actions">
       <button type="button" class="btn btn-ghost" id="payslip-close">Close</button>
+      <button type="button" class="btn btn-primary" id="payslip-download">Download PDF</button>
     </div>
   </div>
 </div>

@@ -134,6 +134,21 @@ Employee `allowances` and `otherDeductions` are JSON arrays, e.g.:
 }
 ```
 
+## Payslip and P9 downloads
+
+- **Payslip PDF**: open any payslip (Run payroll results, or Payroll history →
+  a run → a payslip row) and click "Download PDF".
+- **P9 form**: the "P9 forms" tab generates a KRA-style Tax Deduction Card for
+  one employee's full calendar year, computed from that employee's payslips
+  across every payroll run in that year. This is **your own computed summary
+  for record-keeping and handing to employees** — not an official KRA-issued
+  document. Always reconcile the totals against what was actually filed on
+  iTax before distributing it. KRA's own blank P9A template (for reference or
+  manual filing) is at
+  https://www.kra.go.ke/images/publications/P9-FORM-Template-2025.pdf.
+- Set `COMPANY_NAME` in your environment variables to have it appear on
+  generated PDFs (defaults to "Your Company Name" if unset).
+
 ## Updating statutory rates
 
 Insert a new row into `statutory_rate_sets` and flip `is_active`:
