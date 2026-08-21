@@ -38,20 +38,30 @@ August 2026 but a Finance Bill 2026 proposing new PAYE bands from 1 January
 ```
 payroll-system/
 ├── backend/
+│   ├── api/index.js                Vercel serverless entry point (exports the Express app)
+│   ├── vercel.json                 Routes every request to api/index.js; bundles public/
+│   ├── public/                     Static HTML/CSS/JS admin UI (served by Express)
 │   └── src/
-│       ├── server.js              Express app entry point
-│       ├── config/db.js           PostgreSQL connection pool
-│       ├── db/schema.sql          Table definitions
-│       ├── db/migrate.js          Creates tables + seeds rates & admin user
+│       ├── app.js                  Express app (routes, middleware, static serving) — no listen()
+│       ├── server.js               Local/Docker entry point — imports app.js, calls listen()
+│       ├── config/db.js            PostgreSQL connection pool
+│       ├── db/schema.sql           Table definitions
+│       ├── db/migrate.js           Creates tables + seeds rates & admin user
 │       ├── services/
 │       │   ├── statutoryDeductions.js   PAYE/NSSF/SHA/Housing Levy math (pure functions)
 │       │   ├── payrollService.js        Runs payroll for all employees, saves payslips
 │       │   └── defaultRates.js          Seed values for the rate set
-│       ├── routes/                Employees, payroll, auth endpoints
-│       └── middleware/auth.js     JWT auth guard
-├── frontend/public/               Static HTML/CSS/JS admin UI
-└── docker-compose.yml             Local Postgres for development
+│       ├── routes/                 Employees, payroll, auth endpoints
+│       └── middleware/auth.js      JWT auth guard
+└── docker-compose.yml              Local Postgres for development
 ```
+
+**Why the app.js / server.js split:** Vercel runs Node.js code as serverless
+functions, not a long-lived process — so it needs a plain module that exports
+the Express `app`, without anything calling `app.listen()`. `server.js` is
+the traditional entry point for local development and Docker, where a real
+persistent server is exactly what you want. Both just import the same
+`app.js`, so the routes and middleware are identical either way.
 
 ## Setup
 
@@ -90,7 +100,7 @@ the frontend.
 2. **Employees** — add each employee with their basic salary, KRA PIN, NSSF
    and SHA numbers. (Allowances and other deductions can be added via the API
    — see below — the UI form covers the common fields; extend
-   `employee-form` in `frontend/public/js/app.js` if you want them in the UI too.)
+   `employee-form` in `backend/public/js/app.js` if you want them in the UI too.)
 3. **Run payroll** — pick a month/year and click "Process payroll". This
    calculates every active employee's deductions and creates payslips.
    Re-running the same period recalculates it (unless it's been marked paid).
