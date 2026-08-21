@@ -1,6 +1,6 @@
 const PDFDocument = require('pdfkit');
 
-const COMPANY_NAME = process.env.COMPANY_NAME || 'Your Company Name';
+const COMPANY_NAME = process.env.COMPANY_NAME || 'G-Tech Africa Ltd';
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
   'August', 'September', 'October', 'November', 'December'];
 
