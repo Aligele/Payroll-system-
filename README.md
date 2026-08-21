@@ -1,0 +1,148 @@
+# Ledger — Kenya Payroll System
+
+A payroll web app that automatically computes **PAYE, NSSF (Tier I & II), SHA (SHIF)
+and the Affordable Housing Levy** when you run payroll, then produces a payslip
+per employee. Stack: Node.js/Express + PostgreSQL, plain HTML/CSS/JS frontend
+(no build step).
+
+## How the deductions work
+
+Order of calculation for each employee, per pay period (see
+`backend/src/services/statutoryDeductions.js`):
+
+1. **Gross pay** = basic salary + allowances (taxable and non-taxable).
+2. **NSSF** — Tier I: 6% of the first KES 9,000; Tier II: 6% of pay between
+   KES 9,001–108,000. Employer matches both tiers.
+3. **SHA / SHIF** — 2.75% of gross pay, minimum KES 300.
+4. **Housing Levy** — 1.5% of gross pay (employee), employer matches 1.5%.
+5. **Taxable income** = taxable gross − NSSF − SHA − Housing Levy − pension
+   contribution (capped at KES 30,000).
+6. **PAYE** — progressive bands (10% / 25% / 30% / 32.5% / 35%), minus
+   personal relief of KES 2,400/month.
+7. **Net pay** = gross pay − all of the above − any other deductions (loans,
+   advances, etc.).
+
+**These rates are stored in the database** (`statutory_rate_sets` table), not
+hardcoded, specifically so you can update them the moment KRA, NSSF or SHA
+change a figure — without a code deploy. See "Updating statutory rates" below.
+
+⚠️ **Verify the seeded rates against the official sources
+(kra.go.ke, nssf.or.ke, sha.go.ke) before running real payroll.** Kenyan
+payroll rates change via Finance Acts, court rulings and gazette notices —
+the numbers in `backend/src/services/defaultRates.js` were current as of
+August 2026 but a Finance Bill 2026 proposing new PAYE bands from 1 January
+2027 was still before Parliament when this was built.
+
+## Project structure
+
+```
+payroll-system/
+├── backend/
+│   └── src/
+│       ├── server.js              Express app entry point
+│       ├── config/db.js           PostgreSQL connection pool
+│       ├── db/schema.sql          Table definitions
+│       ├── db/migrate.js          Creates tables + seeds rates & admin user
+│       ├── services/
+│       │   ├── statutoryDeductions.js   PAYE/NSSF/SHA/Housing Levy math (pure functions)
+│       │   ├── payrollService.js        Runs payroll for all employees, saves payslips
+│       │   └── defaultRates.js          Seed values for the rate set
+│       ├── routes/                Employees, payroll, auth endpoints
+│       └── middleware/auth.js     JWT auth guard
+├── frontend/public/               Static HTML/CSS/JS admin UI
+└── docker-compose.yml             Local Postgres for development
+```
+
+## Setup
+
+**1. Start PostgreSQL** (or point `DATABASE_URL` at an existing instance):
+```bash
+docker compose up -d
+```
+
+**2. Configure environment:**
+```bash
+cd backend
+cp .env.example .env
+# edit .env — set JWT_SECRET to a long random string
+```
+
+**3. Install dependencies and set up the database:**
+```bash
+npm install
+npm run migrate
+```
+This creates the tables, seeds the 2026 rate set, and creates an admin user.
+The generated login is printed to the console — by default
+`admin@example.com` / `ChangeMe123!` unless you set `SEED_ADMIN_EMAIL` /
+`SEED_ADMIN_PASSWORD` in `.env` first. **Change this password after first login.**
+
+**4. Run the server:**
+```bash
+npm start
+```
+Open **http://localhost:4000** — this serves both the API (under `/api`) and
+the frontend.
+
+## Using it
+
+1. Sign in.
+2. **Employees** — add each employee with their basic salary, KRA PIN, NSSF
+   and SHA numbers. (Allowances and other deductions can be added via the API
+   — see below — the UI form covers the common fields; extend
+   `employee-form` in `frontend/public/js/app.js` if you want them in the UI too.)
+3. **Run payroll** — pick a month/year and click "Process payroll". This
+   calculates every active employee's deductions and creates payslips.
+   Re-running the same period recalculates it (unless it's been marked paid).
+4. **Payroll history** — browse past runs, click a row for its payslips,
+   click a payslip row to see the full breakdown, and mark a run "paid" once
+   salaries have actually been disbursed (this locks it).
+
+## API reference (all except `/auth/login` require `Authorization: Bearer <token>`)
+
+| Method & path                     | Purpose                                      |
+|-----------------------------------|-----------------------------------------------|
+| `POST /api/auth/login`            | Get a JWT                                     |
+| `GET /api/employees`              | List employees                                |
+| `POST /api/employees`             | Create employee (see body shape below)        |
+| `PUT /api/employees/:id`          | Update employee                               |
+| `DELETE /api/employees/:id`       | Sets status to `terminated`                   |
+| `POST /api/payroll/run`           | `{ periodMonth, periodYear }` — processes payroll |
+| `GET /api/payroll/runs`           | List all payroll runs                         |
+| `GET /api/payroll/runs/:id`       | One run + its payslips                        |
+| `POST /api/payroll/runs/:id/mark-paid` | Locks a processed run                    |
+| `POST /api/payroll/preview`       | Calculate a payslip without saving (what-if)  |
+
+Employee `allowances` and `otherDeductions` are JSON arrays, e.g.:
+```json
+{
+  "allowances": [
+    { "name": "House Allowance", "amount": 15000, "taxable": true },
+    { "name": "Airtime", "amount": 2000, "taxable": false }
+  ],
+  "otherDeductions": [{ "name": "Staff loan repayment", "amount": 5000 }]
+}
+```
+
+## Updating statutory rates
+
+Insert a new row into `statutory_rate_sets` and flip `is_active`:
+```sql
+UPDATE statutory_rate_sets SET is_active = false WHERE is_active = true;
+INSERT INTO statutory_rate_sets (label, effective_from, config, is_active)
+VALUES ('2027 rates', '2027-01-01', '{ ... full config JSON ... }', true);
+```
+Past payroll runs keep referencing the rate set that was active when they
+ran (`payroll_runs.rate_set_id`), so historical payslips never change
+retroactively.
+
+## What this doesn't do yet (natural next steps)
+
+- Payslip PDF export / email delivery
+- Bank file / M-Pesa bulk-payment export for actual disbursement
+- Multi-company / multi-currency support
+- Leave, overtime, and commission modules feeding into gross pay
+- Role-based permissions beyond a single `admin` role
+- Automated tests for the calculation engine (the pure functions in
+  `statutoryDeductions.js` are written to be easy to unit test — e.g. with
+  Jest — this just hasn't been wired up)

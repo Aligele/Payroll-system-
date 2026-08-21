@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ledger — Payroll</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- LOGIN VIEW -->
+<div id="view-login" class="auth-screen">
+  <div class="auth-card">
+    <div class="auth-mark">⌘ Ledger</div>
+    <h1>Sign in to payroll</h1>
+    <p class="muted">PAYE · SHA · NSSF · Housing Levy — computed automatically.</p>
+    <form id="login-form">
+      <label>Email
+        <input type="email" id="login-email" required autocomplete="username" />
+      </label>
+      <label>Password
+        <input type="password" id="login-password" required autocomplete="current-password" />
+      </label>
+      <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+      <p class="form-error" id="login-error"></p>
+    </form>
+    <p class="auth-hint">Seed credentials are printed to the server console the first time you run <code>npm run migrate</code>.</p>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div id="view-app" class="app-shell hidden">
+  <aside class="sidebar">
+    <div class="brand">⌘ Ledger</div>
+    <nav>
+      <button class="nav-link active" data-view="employees">Employees</button>
+      <button class="nav-link" data-view="run-payroll">Run payroll</button>
+      <button class="nav-link" data-view="history">Payroll history</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div id="user-name" class="user-name"></div>
+      <button id="logout-btn" class="link-btn">Sign out</button>
+    </div>
+  </aside>
+
+  <main class="content">
+
+    <!-- EMPLOYEES -->
+    <section id="panel-employees" class="panel">
+      <div class="panel-head">
+        <h2>Employees</h2>
+        <button class="btn btn-primary" id="add-employee-btn">+ Add employee</button>
+      </div>
+      <table class="ledger-table">
+        <thead>
+          <tr>
+            <th>No.</th><th>Name</th><th>KRA PIN</th><th class="num">Basic salary</th><th>Status</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="employees-tbody"></tbody>
+      </table>
+    </section>
+
+    <!-- RUN PAYROLL -->
+    <section id="panel-run-payroll" class="panel hidden">
+      <div class="panel-head">
+        <h2>Run payroll</h2>
+      </div>
+      <form id="run-payroll-form" class="inline-form">
+        <label>Month
+          <select id="run-month"></select>
+        </label>
+        <label>Year
+          <input type="number" id="run-year" min="2020" max="2100" />
+        </label>
+        <button type="submit" class="btn btn-primary">Process payroll</button>
+      </form>
+      <p class="muted" id="run-payroll-note">This calculates PAYE, NSSF, SHA and the Housing Levy for every active employee and creates payslips for the period.</p>
+      <div id="run-payroll-result"></div>
+    </section>
+
+    <!-- HISTORY -->
+    <section id="panel-history" class="panel hidden">
+      <div class="panel-head">
+        <h2>Payroll history</h2>
+      </div>
+      <table class="ledger-table">
+        <thead>
+          <tr><th>Period</th><th>Status</th><th class="num">Employees</th><th class="num">Total net pay</th><th></th></tr>
+        </thead>
+        <tbody id="history-tbody"></tbody>
+      </table>
+      <div id="run-detail"></div>
+    </section>
+
+  </main>
+</div>
+
+<!-- EMPLOYEE MODAL -->
+<div id="employee-modal" class="modal-backdrop hidden">
+  <div class="modal">
+    <h3>Add employee</h3>
+    <form id="employee-form">
+      <div class="form-grid">
+        <label>Employee No. <input type="text" id="f-employeeNo" required /></label>
+        <label>First name <input type="text" id="f-firstName" required /></label>
+        <label>Last name <input type="text" id="f-lastName" required /></label>
+        <label>Email <input type="email" id="f-email" /></label>
+        <label>KRA PIN <input type="text" id="f-kraPin" /></label>
+        <label>NSSF No. <input type="text" id="f-nssfNumber" /></label>
+        <label>SHA No. <input type="text" id="f-shaNumber" /></label>
+        <label>Basic salary (KES) <input type="number" id="f-basicSalary" min="0" step="0.01" required /></label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="employee-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save employee</button>
+      </div>
+      <p class="form-error" id="employee-error"></p>
+    </form>
+  </div>
+</div>
+
+<!-- PAYSLIP MODAL -->
+<div id="payslip-modal" class="modal-backdrop hidden">
+  <div class="modal payslip-modal">
+    <div id="payslip-content"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="payslip-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
