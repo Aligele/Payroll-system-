@@ -21,7 +21,8 @@ router.post('/', async (req, res) => {
     const {
       employeeNo, firstName, lastName, email, idNumber, kraPin, nssfNumber, shaNumber,
       bankName, bankAccount, basicSalary, allowances = [], otherDeductions = [],
-      pensionContribution = 0, hireDate,
+      pensionContribution = 0, hireDate, department, jobTitle, employmentType,
+      emergencyContactName, emergencyContactPhone,
     } = req.body;
 
     if (!employeeNo || !firstName || !lastName || basicSalary == null) {
@@ -31,12 +32,14 @@ router.post('/', async (req, res) => {
     const { rows } = await pool.query(
       `INSERT INTO employees (
          employee_no, first_name, last_name, email, id_number, kra_pin, nssf_number, sha_number,
-         bank_name, bank_account, basic_salary, allowances, other_deductions, pension_contribution, hire_date
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+         bank_name, bank_account, basic_salary, allowances, other_deductions, pension_contribution, hire_date,
+         department, job_title, employment_type, emergency_contact_name, emergency_contact_phone
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *`,
       [
         employeeNo, firstName, lastName, email, idNumber, kraPin, nssfNumber, shaNumber,
         bankName, bankAccount, basicSalary, JSON.stringify(allowances), JSON.stringify(otherDeductions),
-        pensionContribution, hireDate || null,
+        pensionContribution, hireDate || null, department || null, jobTitle || null,
+        employmentType || 'full_time', emergencyContactName || null, emergencyContactPhone || null,
       ]
     );
     res.status(201).json(rows[0]);
@@ -52,13 +55,16 @@ router.put('/:id', async (req, res) => {
     const fields = [
       'employee_no', 'first_name', 'last_name', 'email', 'id_number', 'kra_pin', 'nssf_number',
       'sha_number', 'bank_name', 'bank_account', 'basic_salary', 'allowances', 'other_deductions',
-      'pension_contribution', 'status', 'hire_date',
+      'pension_contribution', 'status', 'hire_date', 'department', 'job_title', 'employment_type',
+      'emergency_contact_name', 'emergency_contact_phone',
     ];
     const camelToSnake = {
       employeeNo: 'employee_no', firstName: 'first_name', lastName: 'last_name', idNumber: 'id_number',
       kraPin: 'kra_pin', nssfNumber: 'nssf_number', shaNumber: 'sha_number', bankName: 'bank_name',
       bankAccount: 'bank_account', basicSalary: 'basic_salary', otherDeductions: 'other_deductions',
-      pensionContribution: 'pension_contribution', hireDate: 'hire_date',
+      pensionContribution: 'pension_contribution', hireDate: 'hire_date', jobTitle: 'job_title',
+      employmentType: 'employment_type', emergencyContactName: 'emergency_contact_name',
+      emergencyContactPhone: 'emergency_contact_phone',
     };
 
     const updates = [];

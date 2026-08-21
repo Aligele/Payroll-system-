@@ -208,6 +208,21 @@ input:focus, select:focus { outline: 2px solid var(--focus); outline-offset: 1px
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0; }
 
+.subhead { font-family: var(--font-display); font-size: 15px; font-weight: 600; margin: 26px 0 10px; }
+label.stacked { display: block; margin: 10px 0; font-size: 13px; font-weight: 500; color: var(--ink-soft); }
+label.stacked textarea { width: 100%; margin-top: 5px; }
+textarea {
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  padding: 9px 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--ink);
+  background: #fff;
+  resize: vertical;
+}
+textarea:focus { outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--focus); }
+
 /* ---------- Modal ---------- */
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(24,36,32,0.45);
@@ -284,3 +299,16 @@ input:focus, select:focus { outline: 2px solid var(--focus); outline-offset: 1px
   font-size: 14px;
   margin-bottom: 16px;
 }
+
+/* ---------- Performance review cards ---------- */
+.review-card {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  background: var(--paper-raised);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+.review-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; font-size: 15px; }
+.review-stars { color: var(--brass-dark); letter-spacing: 1px; margin-left: auto; }

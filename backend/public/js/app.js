@@ -76,6 +76,9 @@ $$('.nav-link').forEach((btn) => {
     $(`#panel-${btn.dataset.view}`).classList.remove('hidden');
     if (btn.dataset.view === 'history') loadHistory();
     if (btn.dataset.view === 'p9') loadP9EmployeeOptions();
+    if (btn.dataset.view === 'leave') initLeaveTab();
+    if (btn.dataset.view === 'attendance') initAttendanceTab();
+    if (btn.dataset.view === 'performance') initPerformanceTab();
   });
 });
 
@@ -90,11 +93,13 @@ async function loadEmployees() {
     tr.innerHTML = `
       <td>${emp.employee_no}</td>
       <td>${emp.first_name} ${emp.last_name}</td>
-      <td>${emp.kra_pin || '—'}</td>
+      <td>${emp.department || '—'}</td>
+      <td>${emp.job_title || '—'}</td>
       <td class="num">${fmtMoney(emp.basic_salary)}</td>
       <td><span class="status-pill status-${emp.status}">${emp.status}</span></td>
       <td></td>
     `;
+    tr.addEventListener('click', () => openEmployeeDetail(emp));
     tbody.appendChild(tr);
   });
 }
@@ -113,10 +118,15 @@ $('#employee-form').addEventListener('submit', async (e) => {
     firstName: $('#f-firstName').value.trim(),
     lastName: $('#f-lastName').value.trim(),
     email: $('#f-email').value.trim() || null,
+    department: $('#f-department').value.trim() || null,
+    jobTitle: $('#f-jobTitle').value.trim() || null,
+    employmentType: $('#f-employmentType').value,
     kraPin: $('#f-kraPin').value.trim() || null,
     nssfNumber: $('#f-nssfNumber').value.trim() || null,
     shaNumber: $('#f-shaNumber').value.trim() || null,
     basicSalary: Number($('#f-basicSalary').value),
+    emergencyContactName: $('#f-emergencyContactName').value.trim() || null,
+    emergencyContactPhone: $('#f-emergencyContactPhone').value.trim() || null,
   };
   try {
     await api('/employees', { method: 'POST', body: JSON.stringify(payload) });
@@ -126,6 +136,250 @@ $('#employee-form').addEventListener('submit', async (e) => {
     $('#employee-error').textContent = err.message;
   }
 });
+
+/* ---------------- Employee detail (documents) ---------------- */
+
+let currentDetailEmployeeId = null;
+
+async function openEmployeeDetail(emp) {
+  currentDetailEmployeeId = emp.id;
+  $('#ed-name').textContent = `${emp.first_name} ${emp.last_name}`;
+  $('#ed-meta').textContent = [emp.job_title, emp.department, emp.employee_no].filter(Boolean).join(' · ');
+  $('#employee-detail-modal').classList.remove('hidden');
+  await loadEmployeeDocuments();
+}
+
+async function loadEmployeeDocuments() {
+  const docs = await api(`/employees/${currentDetailEmployeeId}/documents`);
+  const tbody = $('#ed-documents-tbody');
+  tbody.innerHTML = docs.length ? '' : '<tr><td colspan="3" class="muted">No documents recorded.</td></tr>';
+  docs.forEach((d) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${d.link ? `<a href="${d.link}" target="_blank" rel="noopener">${d.name}</a>` : d.name}</td>
+      <td>${d.category || '—'}</td>
+      <td><button class="link-btn" data-doc-id="${d.id}">Remove</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('[data-doc-id]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      await api(`/employees/${currentDetailEmployeeId}/documents/${btn.dataset.docId}`, { method: 'DELETE' });
+      loadEmployeeDocuments();
+    });
+  });
+}
+
+$('#ed-doc-add').addEventListener('click', async () => {
+  const name = $('#ed-doc-name').value.trim();
+  if (!name) return;
+  await api(`/employees/${currentDetailEmployeeId}/documents`, {
+    method: 'POST',
+    body: JSON.stringify({
+      name,
+      category: $('#ed-doc-category').value,
+      link: $('#ed-doc-link').value.trim() || null,
+    }),
+  });
+  $('#ed-doc-name').value = '';
+  $('#ed-doc-link').value = '';
+  loadEmployeeDocuments();
+});
+
+$('#employee-detail-close').addEventListener('click', () => $('#employee-detail-modal').classList.add('hidden'));
+
+/* ---------------- Shared: populate an employee <select> ---------------- */
+
+async function populateEmployeeSelect(selectEl, { includeAllOption = false } = {}) {
+  const employees = await api('/employees');
+  const keepFirst = includeAllOption ? selectEl.firstElementChild : null;
+  selectEl.innerHTML = '';
+  if (keepFirst) selectEl.appendChild(keepFirst);
+  employees.forEach((emp) => {
+    const opt = document.createElement('option');
+    opt.value = emp.id;
+    opt.textContent = `${emp.first_name} ${emp.last_name} (${emp.employee_no})`;
+    selectEl.appendChild(opt);
+  });
+}
+
+/* ---------------- Leave ---------------- */
+
+async function initLeaveTab() {
+  await populateEmployeeSelect($('#lv-employee'));
+  await populateEmployeeSelect($('#lv-balance-employee'));
+  const types = await api('/leave/types');
+  $('#lv-type').innerHTML = types.map((t) => `<option value="${t.id}">${t.name} (${t.annual_entitlement_days} days/yr)</option>`).join('');
+  $('#lv-balance-year').value = now.getFullYear();
+  await loadLeaveRequests();
+}
+
+$('#lv-submit').addEventListener('click', async () => {
+  $('#lv-error').textContent = '';
+  try {
+    await api('/leave/requests', {
+      method: 'POST',
+      body: JSON.stringify({
+        employeeId: $('#lv-employee').value,
+        leaveTypeId: $('#lv-type').value,
+        startDate: $('#lv-start').value,
+        endDate: $('#lv-end').value,
+        reason: $('#lv-reason').value.trim() || null,
+      }),
+    });
+    $('#lv-start').value = '';
+    $('#lv-end').value = '';
+    $('#lv-reason').value = '';
+    loadLeaveRequests();
+  } catch (err) {
+    $('#lv-error').textContent = err.message;
+  }
+});
+
+$('#lv-balance-check').addEventListener('click', async () => {
+  const employeeId = $('#lv-balance-employee').value;
+  const year = $('#lv-balance-year').value;
+  const balances = await api(`/leave/balance/${employeeId}?year=${year}`);
+  $('#lv-balance-result').innerHTML = `
+    <table class="ledger-table">
+      <thead><tr><th>Type</th><th class="num">Entitlement</th><th class="num">Taken</th><th class="num">Remaining</th></tr></thead>
+      <tbody>
+        ${balances.map((b) => `
+          <tr>
+            <td>${b.name}</td>
+            <td class="num">${b.annual_entitlement_days}</td>
+            <td class="num">${b.days_taken}</td>
+            <td class="num">${b.days_remaining}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  `;
+});
+
+async function loadLeaveRequests() {
+  const requests = await api('/leave/requests');
+  const tbody = $('#leave-requests-tbody');
+  tbody.innerHTML = '';
+  requests.forEach((r) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.first_name} ${r.last_name}</td>
+      <td>${r.leave_type_name}</td>
+      <td>${r.start_date.slice(0, 10)} → ${r.end_date.slice(0, 10)}</td>
+      <td class="num">${r.days}</td>
+      <td><span class="status-pill status-${r.status === 'approved' ? 'active' : r.status === 'rejected' ? 'terminated' : 'draft'}">${r.status}</span></td>
+      <td>${r.status === 'pending' ? `
+        <button class="link-btn" data-approve="${r.id}">Approve</button> ·
+        <button class="link-btn" data-reject="${r.id}">Reject</button>
+      ` : ''}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('[data-approve]').forEach((btn) => {
+    btn.addEventListener('click', async () => { await api(`/leave/requests/${btn.dataset.approve}/approve`, { method: 'POST' }); loadLeaveRequests(); });
+  });
+  tbody.querySelectorAll('[data-reject]').forEach((btn) => {
+    btn.addEventListener('click', async () => { await api(`/leave/requests/${btn.dataset.reject}/reject`, { method: 'POST' }); loadLeaveRequests(); });
+  });
+}
+
+/* ---------------- Attendance ---------------- */
+
+const ATTENDANCE_STATUSES = ['present', 'absent', 'late', 'on_leave', 'holiday'];
+
+function initAttendanceTab() {
+  if (!$('#att-date').value) $('#att-date').value = new Date().toISOString().slice(0, 10);
+  loadAttendance();
+}
+
+$('#att-load').addEventListener('click', loadAttendance);
+
+async function loadAttendance() {
+  const date = $('#att-date').value;
+  const { records } = await api(`/attendance?date=${date}`);
+  const tbody = $('#attendance-tbody');
+  tbody.innerHTML = '';
+  records.forEach((r) => {
+    const tr = document.createElement('tr');
+    tr.dataset.employeeId = r.employee_id;
+    tr.innerHTML = `
+      <td>${r.first_name} ${r.last_name}</td>
+      <td><select class="att-status">${ATTENDANCE_STATUSES.map((s) => `<option value="${s}" ${r.status === s ? 'selected' : ''}>${s.replace('_', ' ')}</option>`).join('')}</select></td>
+      <td><input type="time" class="att-checkin" value="${r.check_in || ''}" /></td>
+      <td><input type="time" class="att-checkout" value="${r.check_out || ''}" /></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+$('#att-save').addEventListener('click', async () => {
+  $('#att-error').textContent = '';
+  const date = $('#att-date').value;
+  const records = [...$('#attendance-tbody').querySelectorAll('tr')].map((tr) => ({
+    employeeId: tr.dataset.employeeId,
+    status: tr.querySelector('.att-status').value,
+    checkIn: tr.querySelector('.att-checkin').value || null,
+    checkOut: tr.querySelector('.att-checkout').value || null,
+  }));
+  try {
+    await api('/attendance', { method: 'POST', body: JSON.stringify({ date, records }) });
+  } catch (err) {
+    $('#att-error').textContent = err.message;
+  }
+});
+
+/* ---------------- Performance ---------------- */
+
+async function initPerformanceTab() {
+  await populateEmployeeSelect($('#pf-employee'));
+  await populateEmployeeSelect($('#pf-filter-employee'), { includeAllOption: true });
+  await loadPerformanceReviews();
+}
+
+$('#pf-submit').addEventListener('click', async () => {
+  $('#pf-error').textContent = '';
+  try {
+    await api('/performance', {
+      method: 'POST',
+      body: JSON.stringify({
+        employeeId: $('#pf-employee').value,
+        reviewPeriod: $('#pf-period').value.trim(),
+        reviewerName: $('#pf-reviewer').value.trim() || null,
+        rating: $('#pf-rating').value || null,
+        strengths: $('#pf-strengths').value.trim() || null,
+        improvements: $('#pf-improvements').value.trim() || null,
+        goals: $('#pf-goals').value.trim() || null,
+        comments: $('#pf-comments').value.trim() || null,
+      }),
+    });
+    ['pf-period', 'pf-reviewer', 'pf-strengths', 'pf-improvements', 'pf-goals', 'pf-comments'].forEach((id) => { $(`#${id}`).value = ''; });
+    $('#pf-rating').value = '';
+    loadPerformanceReviews();
+  } catch (err) {
+    $('#pf-error').textContent = err.message;
+  }
+});
+
+$('#pf-filter-employee').addEventListener('change', loadPerformanceReviews);
+
+async function loadPerformanceReviews() {
+  const employeeId = $('#pf-filter-employee').value;
+  const reviews = await api(`/performance${employeeId ? `?employeeId=${employeeId}` : ''}`);
+  const stars = (r) => r ? '★'.repeat(r) + '☆'.repeat(5 - r) : '—';
+  $('#perf-list').innerHTML = reviews.length ? reviews.map((r) => `
+    <div class="review-card">
+      <div class="review-head">
+        <strong>${r.first_name} ${r.last_name}</strong> — ${r.review_period}
+        <span class="review-stars">${stars(r.rating)}</span>
+      </div>
+      ${r.reviewer_name ? `<div class="muted">Reviewer: ${r.reviewer_name}</div>` : ''}
+      ${r.strengths ? `<div><strong>Strengths:</strong> ${r.strengths}</div>` : ''}
+      ${r.improvements ? `<div><strong>Areas for improvement:</strong> ${r.improvements}</div>` : ''}
+      ${r.goals ? `<div><strong>Goals:</strong> ${r.goals}</div>` : ''}
+      ${r.comments ? `<div><strong>Comments:</strong> ${r.comments}</div>` : ''}
+    </div>
+  `).join('') : '<p class="muted">No reviews yet.</p>';
+}
 
 /* ---------------- Run payroll ---------------- */
 

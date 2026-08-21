@@ -134,6 +134,25 @@ Employee `allowances` and `otherDeductions` are JSON arrays, e.g.:
 }
 ```
 
+## HR module
+
+Alongside payroll, the app now covers core HR admin functions (all managed
+by HR/admin staff — there's no separate employee login):
+
+- **Employee records** — department, job title, employment type, emergency
+  contact, plus a document register per employee (name/category/link — file
+  storage itself isn't wired up yet, `link` just points wherever the actual
+  file lives).
+- **Leave management** — request, approve/reject, and a balance calculator
+  (entitlement minus approved days taken, per leave type per year). Seeded
+  with Kenyan Employment Act defaults (21 days annual, 14 sick, 90 maternity,
+  14 paternity, 5 compassionate) — verify against current law before relying
+  on these for real leave accounting.
+- **Attendance** — mark daily status (present/absent/late/on leave/holiday)
+  with optional check-in/out times, per employee per day.
+- **Performance reviews** — review period, reviewer, 1–5 rating, strengths,
+  areas for improvement, goals, and comments, with history per employee.
+
 ## Payslip and P9 downloads
 
 - **Payslip PDF**: open any payslip (Run payroll results, or Payroll history →
