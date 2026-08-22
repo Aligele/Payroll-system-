@@ -11,8 +11,40 @@
 <body>
 <div class="flag-page-bg" aria-hidden="true"></div>
 
+<!-- LANDING / PORTFOLIO VIEW -->
+<div id="view-landing" class="landing-screen">
+  <div class="landing-card">
+    <div class="ribbon-accent"></div>
+    <div class="landing-body">
+      <div class="auth-mark"><span class="flag-badge" aria-hidden="true"></span> Ledger</div>
+      <h1>HR &amp; Payroll Management System</h1>
+      <p class="landing-sub">Built for G-Tech Africa Ltd — payroll processing, statutory compliance, and HR administration, all in one place.</p>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">◆</div>
+          <h3>Payroll, done right</h3>
+          <p>PAYE, NSSF, SHA and the Housing Levy computed automatically on every run. Downloadable payslips and KRA-style P9 forms, generated straight from your records.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">◆</div>
+          <h3>Full HR toolkit</h3>
+          <p>Employee records with departments and documents, leave requests and approvals, daily attendance, and performance reviews.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">◆</div>
+          <h3>Access that makes sense</h3>
+          <p>Admin, Staff, and HR-only roles. Salary and bank details stay restricted to those who should see them.</p>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-primary btn-block" id="landing-signin-btn">Sign in</button>
+    </div>
+  </div>
+</div>
+
 <!-- LOGIN VIEW -->
-<div id="view-login" class="auth-screen">
+<div id="view-login" class="auth-screen hidden">
   <div class="auth-card">
     <div class="ribbon-accent"></div>
     <div class="auth-card-body">
@@ -30,6 +62,7 @@
         <p class="form-error" id="login-error"></p>
       </form>
       <p class="auth-hint">Seed credentials are printed to the server console the first time you run <code>npm run migrate</code>.</p>
+      <button type="button" class="link-btn landing-back-link" id="landing-back-btn">← Back</button>
     </div>
   </div>
 </div>

@@ -94,6 +94,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 function showApp() {
+  $('#view-landing').classList.add('hidden');
   $('#view-login').classList.add('hidden');
   $('#view-app').classList.remove('hidden');
   $('#user-name').textContent = state.user ? state.user.name : '';
@@ -113,10 +114,20 @@ function showApp() {
   loadEmployees();
 }
 
+function showLanding() {
+  $('#view-app').classList.add('hidden');
+  $('#view-login').classList.add('hidden');
+  $('#view-landing').classList.remove('hidden');
+}
+
 function showLogin() {
   $('#view-app').classList.add('hidden');
+  $('#view-landing').classList.add('hidden');
   $('#view-login').classList.remove('hidden');
 }
+
+$('#landing-signin-btn').addEventListener('click', showLogin);
+$('#landing-back-btn').addEventListener('click', showLanding);
 
 $('#login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -798,4 +809,4 @@ $('#u-add').addEventListener('click', async () => {
 
 /* ---------------- Boot ---------------- */
 
-if (state.token) showApp(); else showLogin();
+if (state.token) showApp(); else showLanding();
