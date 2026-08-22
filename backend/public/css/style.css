@@ -12,9 +12,8 @@
   --rust: #A34A34;
   --rust-soft: #F3E4DF;
   --focus: #2C5C4A;
-  /* Kenya flag colors — used only for the ribbon accent and wordmark badge,
-     never as a base palette, so the system reads as "official document"
-     rather than a flag repainted over business software. */
+  /* Kenya flag colors — now the actual page background (see .flag-page-bg),
+     plus the wordmark badge and ribbon accents on interior surfaces. */
   --ke-black: #14120F;
   --ke-red: #BB0000;
   --ke-green: #006600;
@@ -34,10 +33,28 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--paper);
   color: var(--ink);
   font-family: var(--font-body);
   font-size: 15px;
+}
+
+/* Full-page Kenya flag background — fixed so it stays put behind scrolling
+   content. Real flag proportions (black / white / red / white / green),
+   oriented the way the flag normally reads. Sits behind every screen; all
+   actual content (cards, sidebar, tables) is fully opaque on top of it, so
+   nothing becomes hard to read — only the space around the content shows it. */
+.flag-page-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    to bottom,
+    var(--ke-black) 0%, var(--ke-black) 24%,
+    #fff 24%, #fff 28%,
+    var(--ke-red) 28%, var(--ke-red) 72%,
+    #fff 72%, #fff 76%,
+    var(--ke-green) 76%, var(--ke-green) 100%
+  );
 }
 
 .hidden { display: none !important; }
@@ -131,9 +148,7 @@ a, .link-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  background:
-    linear-gradient(var(--rule) 1px, transparent 1px) 0 0 / 100% 34px,
-    var(--paper);
+  background: transparent; /* .flag-page-bg shows through behind the card */
 }
 .auth-card {
   background: var(--paper-raised);
@@ -249,7 +264,17 @@ input:focus, select:focus {
 .user-name { font-size: 13px; color: #C6C1B4; }
 .sidebar-footer .link-btn { color: #E9C98F; text-decoration: none; font-size: 13px; text-align: left; }
 
-.content { flex: 1; padding: 36px 44px; max-width: 1100px; }
+.content { flex: 1; padding: 28px; max-width: 1100px; }
+
+/* Each panel is its own solid card floating over the flag background — the
+   flag frames the working area generously without ever sitting behind
+   actual data or text. */
+.panel {
+  background: var(--paper);
+  border-radius: var(--radius);
+  padding: 28px 36px 40px;
+  box-shadow: 0 4px 24px rgba(20,18,15,0.22);
+}
 
 .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
 .panel-head h2 { font-family: var(--font-display); font-weight: 600; font-size: 22px; margin: 0; }
