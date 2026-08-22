@@ -54,6 +54,33 @@ function handleSessionExpired() {
 
 /* ---------------- Auth ---------------- */
 
+let sessionRefreshTimer = null;
+
+// Keeps the session alive during active use: a fixed JWT_EXPIRES_IN window
+// would otherwise expire mid-task regardless of how actively someone's
+// working. Runs on an interval well inside that window, so as long as the
+// tab stays open the token keeps renewing — a real expiry only happens
+// after genuine inactivity (tab closed, laptop asleep) longer than that window.
+function startSessionRefresh() {
+  stopSessionRefresh();
+  sessionRefreshTimer = setInterval(async () => {
+    try {
+      const data = await api('/auth/refresh', { method: 'POST' });
+      state.token = data.token;
+      state.user = data.user;
+      localStorage.setItem('payroll_token', data.token);
+      localStorage.setItem('payroll_user', JSON.stringify(data.user));
+    } catch (err) {
+      // A failed refresh (expired/deactivated) already triggers the normal
+      // session-expired redirect inside api() — nothing more to do here.
+    }
+  }, 15 * 60 * 1000); // every 15 minutes
+}
+function stopSessionRefresh() {
+  if (sessionRefreshTimer) clearInterval(sessionRefreshTimer);
+  sessionRefreshTimer = null;
+}
+
 function showApp() {
   $('#view-login').classList.add('hidden');
   $('#view-app').classList.remove('hidden');
@@ -70,12 +97,14 @@ function showApp() {
     const salaryHeader = document.querySelector('#panel-employees thead th.num');
     if (salaryHeader) salaryHeader.classList.add('hidden');
   }
+  startSessionRefresh();
   loadEmployees();
 }
 
 function showLogin() {
   $('#view-app').classList.add('hidden');
   $('#view-login').classList.remove('hidden');
+  stopSessionRefresh();
 }
 
 $('#login-form').addEventListener('submit', async (e) => {
