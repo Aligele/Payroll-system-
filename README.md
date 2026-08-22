@@ -134,6 +134,21 @@ Employee `allowances` and `otherDeductions` are JSON arrays, e.g.:
 }
 ```
 
+## Phone-specific polish
+
+Beyond just "not broken on mobile," a few real phone-usability fixes:
+- Form fields use 16px text — under that, iOS Safari auto-zooms into any
+  input you tap, which is disorienting on a form with a dozen fields.
+- Modal action buttons (Save, Cancel, Download) are pinned to the bottom
+  of the dialog and never scroll away, even on long forms like Add Employee.
+- Hover effects (button lift, row highlight, nav slide-in) only apply on
+  devices that actually support hovering — on a touchscreen they used to
+  get "stuck" after a tap since there's no mouse to move away and clear
+  them; touch now gets its own immediate tap feedback instead.
+- Buttons and nav items meet a ~44px minimum tap target on narrow screens.
+- The emergency contact phone field opens a numeric phone keypad
+  (`type="tel"`) instead of the full keyboard.
+
 ## Sessions and the 8-hour timeout
 
 The app renews your session automatically during real use — but not via a
