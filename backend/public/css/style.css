@@ -115,8 +115,13 @@ a, .link-btn {
   height: 4px;
   background: linear-gradient(
     to right,
-    var(--ke-black) 0 20%, #fff 20% 24%, var(--ke-red) 24% 48%,
-    #fff 48% 52%, var(--ke-green) 52% 76%, #fff 76% 80%, var(--ke-black) 80% 100%
+    var(--ke-black) 0%, var(--ke-black) 20%,
+    #fff 20%, #fff 24%,
+    var(--ke-red) 24%, var(--ke-red) 48%,
+    #fff 48%, #fff 52%,
+    var(--ke-green) 52%, var(--ke-green) 76%,
+    #fff 76%, #fff 80%,
+    var(--ke-black) 80%, var(--ke-black) 100%
   );
 }
 
@@ -207,8 +212,13 @@ input:focus, select:focus {
   margin: 0 -16px 20px;
   background: linear-gradient(
     to right,
-    var(--ke-black) 0 20%, #fff 20% 24%, var(--ke-red) 24% 48%,
-    #fff 48% 52%, var(--ke-green) 52% 76%, #fff 76% 80%, var(--ke-black) 80% 100%
+    var(--ke-black) 0%, var(--ke-black) 20%,
+    #fff 20%, #fff 24%,
+    var(--ke-red) 24%, var(--ke-red) 48%,
+    #fff 48%, #fff 52%,
+    var(--ke-green) 52%, var(--ke-green) 76%,
+    #fff 76%, #fff 80%,
+    var(--ke-black) 80%, var(--ke-black) 100%
   );
 }
 .brand {
