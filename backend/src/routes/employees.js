@@ -37,7 +37,7 @@ router.post('/', async (req, res) => {
       employeeNo, firstName, lastName, email, idNumber, kraPin, nssfNumber, shaNumber,
       bankName, bankAccount, basicSalary, allowances = [], otherDeductions = [],
       pensionContribution = 0, hireDate, department, jobTitle, employmentType,
-      emergencyContactName, emergencyContactPhone,
+      emergencyContactName, emergencyContactPhone, phone,
     } = req.body;
 
     if (!employeeNo || !firstName || !lastName) {
@@ -54,14 +54,15 @@ router.post('/', async (req, res) => {
       `INSERT INTO employees (
          employee_no, first_name, last_name, email, id_number, kra_pin, nssf_number, sha_number,
          bank_name, bank_account, basic_salary, allowances, other_deductions, pension_contribution, hire_date,
-         department, job_title, employment_type, emergency_contact_name, emergency_contact_phone
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *`,
+         department, job_title, employment_type, emergency_contact_name, emergency_contact_phone, phone
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING *`,
       [
         employeeNo, firstName, lastName, email, idNumber, kraPin, nssfNumber, shaNumber,
         hr ? null : bankName, hr ? null : bankAccount, hr ? 0 : basicSalary,
         JSON.stringify(hr ? [] : allowances), JSON.stringify(hr ? [] : otherDeductions),
         hr ? 0 : pensionContribution, hireDate || null, department || null, jobTitle || null,
         employmentType || 'full_time', emergencyContactName || null, emergencyContactPhone || null,
+        phone || null,
       ]
     );
     res.status(201).json(hr ? stripPayrollFields(rows[0]) : rows[0]);
@@ -78,7 +79,7 @@ router.put('/:id', async (req, res) => {
       'employee_no', 'first_name', 'last_name', 'email', 'id_number', 'kra_pin', 'nssf_number',
       'sha_number', 'bank_name', 'bank_account', 'basic_salary', 'allowances', 'other_deductions',
       'pension_contribution', 'status', 'hire_date', 'department', 'job_title', 'employment_type',
-      'emergency_contact_name', 'emergency_contact_phone',
+      'emergency_contact_name', 'emergency_contact_phone', 'phone',
     ];
     if (isHrStaff(req)) fields = fields.filter((f) => !PAYROLL_ONLY_FIELDS.includes(f));
 

@@ -219,7 +219,7 @@ async function loadEmployees() {
 const EMPLOYEE_DRAFT_KEY = 'employee_form_draft';
 const EMPLOYEE_FIELD_IDS = [
   'f-employeeNo', 'f-firstName', 'f-lastName', 'f-email', 'f-department', 'f-jobTitle',
-  'f-employmentType', 'f-kraPin', 'f-nssfNumber', 'f-shaNumber', 'f-basicSalary',
+  'f-employmentType', 'f-kraPin', 'f-nssfNumber', 'f-shaNumber', 'f-basicSalary', 'f-phone',
   'f-emergencyContactName', 'f-emergencyContactPhone',
 ];
 
@@ -266,6 +266,7 @@ $('#employee-form').addEventListener('submit', async (e) => {
     kraPin: $('#f-kraPin').value.trim() || null,
     nssfNumber: $('#f-nssfNumber').value.trim() || null,
     shaNumber: $('#f-shaNumber').value.trim() || null,
+    phone: $('#f-phone').value.trim() || null,
     emergencyContactName: $('#f-emergencyContactName').value.trim() || null,
     emergencyContactPhone: $('#f-emergencyContactPhone').value.trim() || null,
   };
@@ -625,8 +626,13 @@ async function loadRunDetail(runId) {
   detail.innerHTML = `
     <h3 style="font-family: var(--font-display); margin-top: 28px;">
       ${MONTHS[payrollRun.period_month - 1]} ${payrollRun.period_year} — payslips
-      ${payrollRun.status === 'processed' ? `<button class="btn btn-primary" id="mark-paid-btn" style="font-size:12px; margin-left:12px;">Mark as paid</button>` : ''}
     </h3>
+    <div class="run-detail-actions">
+      ${payrollRun.status === 'processed' ? `<button class="btn btn-primary" id="mark-paid-btn">Mark as paid</button>` : ''}
+      <button class="btn btn-ghost" id="export-mpesa-btn">Download M-Pesa payment CSV</button>
+      <button class="btn btn-ghost" id="export-bank-btn">Download bank payment CSV</button>
+    </div>
+    <p class="form-error" id="export-warning"></p>
     <table class="ledger-table">
       <thead><tr><th>Employee</th><th class="num">Gross</th><th class="num">PAYE</th><th class="num">Net pay</th></tr></thead>
       <tbody>
@@ -652,6 +658,31 @@ async function loadRunDetail(runId) {
       loadHistory();
     });
   }
+
+  function describeSkipped(skipped) {
+    if (skipped.length === 0) return '';
+    const names = skipped.map((s) => `${s.name} (${s.reason})`).join('; ');
+    return `Skipped ${skipped.length} employee(s) — missing info: ${names}`;
+  }
+
+  $('#export-mpesa-btn').addEventListener('click', async () => {
+    $('#export-warning').textContent = '';
+    try {
+      const { skipped } = await downloadFile(`/payroll/runs/${runId}/export/mpesa`, 'mpesa-payment.csv');
+      $('#export-warning').textContent = describeSkipped(skipped);
+    } catch (err) {
+      reportError(err);
+    }
+  });
+  $('#export-bank-btn').addEventListener('click', async () => {
+    $('#export-warning').textContent = '';
+    try {
+      const { skipped } = await downloadFile(`/payroll/runs/${runId}/export/bank`, 'bank-payment.csv');
+      $('#export-warning').textContent = describeSkipped(skipped);
+    } catch (err) {
+      reportError(err);
+    }
+  });
 }
 
 /* ---------------- Payslip receipt ---------------- */
@@ -710,6 +741,8 @@ async function downloadFile(path, fallbackFilename) {
   const disposition = res.headers.get('Content-Disposition') || '';
   const match = disposition.match(/filename="([^"]+)"/);
   const filename = match ? match[1] : fallbackFilename;
+  const skippedHeader = res.headers.get('X-Skipped-Employees');
+  const skipped = skippedHeader ? JSON.parse(decodeURIComponent(skippedHeader)) : [];
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -719,6 +752,8 @@ async function downloadFile(path, fallbackFilename) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+
+  return { filename, skipped };
 }
 
 /* ---------------- P9 forms ---------------- */

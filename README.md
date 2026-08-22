@@ -226,6 +226,26 @@ by HR/admin staff — there's no separate employee login):
 - **Performance reviews** — review period, reviewer, 1–5 rating, strengths,
   areas for improvement, goals, and comments, with history per employee.
 
+## Paying salaries: M-Pesa and bank export
+
+Once a payroll run is processed, open it under **Payroll history** for two
+download buttons:
+
+- **M-Pesa payment CSV** — the core structure Safaricom's Bulk Payment
+  (B2C) service requires: employee name, phone number (auto-normalized to
+  `2547XXXXXXXX`/`2541XXXXXXXX` from whatever format you entered it in),
+  and net pay. Safaricom issues each organization its own exact template
+  once onboarded — check column order against yours before a real upload.
+- **Bank payment CSV** — a generic bulk-upload layout (account number,
+  account name, bank name, amount, narration). There's no single standard
+  across Kenyan banks, so your bank's tool may need columns renamed or
+  reordered.
+
+Employees missing a phone number (for M-Pesa) or bank details (for the
+bank file) are skipped rather than breaking the export — a warning under
+the buttons lists exactly who was skipped and why, so you can fix their
+record and re-download.
+
 ## Payslip and P9 downloads
 
 - **Payslip PDF**: open any payslip (Run payroll results, or Payroll history →

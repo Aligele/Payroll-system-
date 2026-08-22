@@ -4,6 +4,7 @@ const { runPayroll, getPayrollRun, listPayrollRuns } = require('../services/payr
 const { calculatePayslip } = require('../services/statutoryDeductions');
 const { getActiveRateSet } = require('../services/payrollService');
 const { renderPayslipPdf, renderP9Pdf } = require('../services/pdfGenerator');
+const { generateMpesaCsv, generateBankCsv } = require('../services/paymentExport');
 const pool = require('../config/db');
 
 const router = express.Router();
@@ -121,6 +122,49 @@ router.get('/employees/:employeeId/p9/:year', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to generate P9 form' });
+  }
+});
+
+// Payment disbursement exports for a processed payroll run — M-Pesa Bulk
+// Payment CSV and a generic bank bulk-upload CSV. See paymentExport.js for
+// caveats: these are close to the real formats but not guaranteed to match
+// your exact provider's template without checking column names first.
+
+router.get('/runs/:id/export/mpesa', async (req, res) => {
+  try {
+    const result = await getPayrollRun(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Payroll run not found' });
+
+    const { csv, skipped } = generateMpesaCsv(result.payslips);
+    if (skipped.length > 0) {
+      res.setHeader('X-Skipped-Employees', encodeURIComponent(JSON.stringify(skipped)));
+    }
+    const filename = `mpesa-bulk-payment-run-${req.params.id}.csv`;
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csv);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to generate M-Pesa payment file' });
+  }
+});
+
+router.get('/runs/:id/export/bank', async (req, res) => {
+  try {
+    const result = await getPayrollRun(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Payroll run not found' });
+
+    const { csv, skipped } = generateBankCsv(result.payslips);
+    if (skipped.length > 0) {
+      res.setHeader('X-Skipped-Employees', encodeURIComponent(JSON.stringify(skipped)));
+    }
+    const filename = `bank-payment-run-${req.params.id}.csv`;
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csv);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to generate bank payment file' });
   }
 });
 

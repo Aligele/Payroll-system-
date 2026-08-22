@@ -6,3 +6,7 @@
 -- convention, not a hard DB rule.
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true;
+
+-- Employee's own mobile number, for M-Pesa bulk salary disbursement
+-- (separate from emergency_contact_phone, which is someone else's number).
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
