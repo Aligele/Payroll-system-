@@ -33,6 +33,7 @@ function showApp() {
   $('#view-login').classList.add('hidden');
   $('#view-app').classList.remove('hidden');
   $('#user-name').textContent = state.user ? state.user.name : '';
+  if (!state.user || state.user.role !== 'admin') $('#nav-users').classList.add('hidden');
   loadEmployees();
 }
 
@@ -79,6 +80,7 @@ $$('.nav-link').forEach((btn) => {
     if (btn.dataset.view === 'leave') initLeaveTab();
     if (btn.dataset.view === 'attendance') initAttendanceTab();
     if (btn.dataset.view === 'performance') initPerformanceTab();
+    if (btn.dataset.view === 'users') loadUsers();
   });
 });
 
@@ -575,6 +577,76 @@ $('#p9-form').addEventListener('submit', async (e) => {
     await downloadFile(`/payroll/employees/${employeeId}/p9/${year}`, `P9-${year}.pdf`);
   } catch (err) {
     $('#p9-error').textContent = err.message;
+  }
+});
+
+/* ---------------- Users (admin only) ---------------- */
+
+async function loadUsers() {
+  const users = await api('/users');
+  const tbody = $('#users-tbody');
+  tbody.innerHTML = '';
+  users.forEach((u) => {
+    const isSelf = state.user && u.id === state.user.id;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${u.name}${isSelf ? ' <span class="muted">(you)</span>' : ''}</td>
+      <td>${u.email}</td>
+      <td><span class="status-pill status-${u.role === 'admin' ? 'active' : 'draft'}">${u.role}</span></td>
+      <td><span class="status-pill status-${u.is_active ? 'active' : 'terminated'}">${u.is_active ? 'active' : 'deactivated'}</span></td>
+      <td>
+        ${!isSelf ? `
+          <button class="link-btn" data-toggle-role="${u.id}" data-current-role="${u.role}">
+            Make ${u.role === 'admin' ? 'staff' : 'admin'}
+          </button> ·
+          <button class="link-btn" data-toggle-active="${u.id}" data-current-active="${u.is_active}">
+            ${u.is_active ? 'Deactivate' : 'Reactivate'}
+          </button>
+        ` : ''}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('[data-toggle-role]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const newRole = btn.dataset.currentRole === 'admin' ? 'staff' : 'admin';
+      try {
+        await api(`/users/${btn.dataset.toggleRole}`, { method: 'PUT', body: JSON.stringify({ role: newRole }) });
+        loadUsers();
+      } catch (err) { alert(err.message); }
+    });
+  });
+  tbody.querySelectorAll('[data-toggle-active]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const newActive = btn.dataset.currentActive !== 'true';
+      try {
+        await api(`/users/${btn.dataset.toggleActive}`, { method: 'PUT', body: JSON.stringify({ isActive: newActive }) });
+        loadUsers();
+      } catch (err) { alert(err.message); }
+    });
+  });
+}
+
+$('#u-add').addEventListener('click', async () => {
+  $('#u-error').textContent = '';
+  try {
+    await api('/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: $('#u-name').value.trim(),
+        email: $('#u-email').value.trim(),
+        password: $('#u-password').value,
+        role: $('#u-role').value,
+      }),
+    });
+    $('#u-name').value = '';
+    $('#u-email').value = '';
+    $('#u-password').value = '';
+    $('#u-role').value = 'staff';
+    loadUsers();
+  } catch (err) {
+    $('#u-error').textContent = err.message;
   }
 });
 

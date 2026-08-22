@@ -10,6 +10,7 @@ const leaveRoutes = require('./routes/leave');
 const attendanceRoutes = require('./routes/attendance');
 const performanceRoutes = require('./routes/performance');
 const documentRoutes = require('./routes/documents');
+const userRoutes = require('./routes/users');
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use('/api/leave', leaveRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/performance', performanceRoutes);
 app.use('/api/employees/:employeeId/documents', documentRoutes);
+app.use('/api/users', userRoutes);
 
 // Serve the frontend (static files) — lives in backend/public so it deploys
 // alongside the API on platforms (like Vercel) that only upload this directory.

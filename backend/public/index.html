@@ -42,6 +42,7 @@
       <button class="nav-link" data-view="run-payroll">Run payroll</button>
       <button class="nav-link" data-view="history">Payroll history</button>
       <button class="nav-link" data-view="p9">P9 forms</button>
+      <button class="nav-link" data-view="users" id="nav-users">Users</button>
     </nav>
     <div class="sidebar-footer">
       <div id="user-name" class="user-name"></div>
@@ -202,6 +203,35 @@
         <button type="submit" class="btn btn-primary">Download P9 PDF</button>
       </form>
       <p class="form-error" id="p9-error"></p>
+    </section>
+
+    <!-- USERS (admin only) -->
+    <section id="panel-users" class="panel hidden">
+      <div class="panel-head">
+        <h2>Users</h2>
+      </div>
+      <p class="muted">Admins can manage everything, including other users. Staff accounts can use the rest of the app but can't reach this page.</p>
+
+      <h3 class="subhead">Add a user</h3>
+      <div class="form-grid">
+        <label>Name <input type="text" id="u-name" /></label>
+        <label>Email <input type="email" id="u-email" /></label>
+        <label>Password <input type="password" id="u-password" placeholder="min. 8 characters" /></label>
+        <label>Role
+          <select id="u-role">
+            <option value="staff">Staff</option>
+            <option value="admin">Admin</option>
+          </select>
+        </label>
+      </div>
+      <button type="button" class="btn btn-primary" id="u-add">Add user</button>
+      <p class="form-error" id="u-error"></p>
+
+      <h3 class="subhead">All users</h3>
+      <table class="ledger-table">
+        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
+        <tbody id="users-tbody"></tbody>
+      </table>
     </section>
 
   </main>

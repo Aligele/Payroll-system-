@@ -19,6 +19,10 @@ router.post('/login', async (req, res) => {
     const match = await bcrypt.compare(password, user.password_hash);
     if (!match) return res.status(401).json({ error: 'Invalid credentials' });
 
+    if (user.is_active === false) {
+      return res.status(403).json({ error: 'This account has been deactivated' });
+    }
+
     const token = jwt.sign(
       { sub: user.id, email: user.email, role: user.role, name: user.name },
       process.env.JWT_SECRET,

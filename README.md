@@ -134,6 +134,17 @@ Employee `allowances` and `otherDeductions` are JSON arrays, e.g.:
 }
 ```
 
+## User roles and admin management
+
+There are two roles: **admin** (full access, including managing other
+users) and **staff** (everything else — payroll, HR, leave, attendance,
+performance — but not user management). The seeded account from the
+migration is an admin. Admins can add new accounts and change roles from
+the **Users** tab, which only appears in the sidebar for admins. Accounts
+are deactivated rather than deleted, so historical records (who approved a
+leave request, who ran a payroll) stay intact. The system won't let you
+demote or deactivate the last remaining active admin.
+
 ## HR module
 
 Alongside payroll, the app now covers core HR admin functions (all managed
