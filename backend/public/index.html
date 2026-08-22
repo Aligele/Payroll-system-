@@ -95,6 +95,7 @@
         <h2>Employees</h2>
         <button class="btn btn-primary" id="add-employee-btn">+ Add employee</button>
       </div>
+      <div class="table-scroll">
       <table class="ledger-table">
         <thead>
           <tr>
@@ -103,6 +104,7 @@
         </thead>
         <tbody id="employees-tbody"></tbody>
       </table>
+      </div>
     </section>
 
     <!-- RUN PAYROLL -->
@@ -128,12 +130,14 @@
       <div class="panel-head">
         <h2>Payroll history</h2>
       </div>
+      <div class="table-scroll">
       <table class="ledger-table">
         <thead>
           <tr><th>Period</th><th>Status</th><th class="num">Employees</th><th class="num">Total net pay</th><th></th></tr>
         </thead>
         <tbody id="history-tbody"></tbody>
       </table>
+      </div>
       <div id="run-detail"></div>
     </section>
 
@@ -163,10 +167,12 @@
       <div id="lv-balance-result"></div>
 
       <h3 class="subhead">Requests</h3>
+      <div class="table-scroll">
       <table class="ledger-table">
         <thead><tr><th>Employee</th><th>Type</th><th>Dates</th><th class="num">Days</th><th>Status</th><th></th></tr></thead>
         <tbody id="leave-requests-tbody"></tbody>
       </table>
+      </div>
     </section>
 
     <!-- ATTENDANCE -->
@@ -178,10 +184,12 @@
         <label>Date <input type="date" id="att-date" /></label>
         <button type="button" class="btn btn-ghost" id="att-load">Load</button>
       </div>
+      <div class="table-scroll">
       <table class="ledger-table">
         <thead><tr><th>Employee</th><th>Status</th><th>Check in</th><th>Check out</th></tr></thead>
         <tbody id="attendance-tbody"></tbody>
       </table>
+      </div>
       <button type="button" class="btn btn-primary" id="att-save">Save attendance</button>
       <p class="form-error" id="att-error"></p>
     </section>
@@ -266,10 +274,12 @@
       <p class="form-error" id="u-error"></p>
 
       <h3 class="subhead">All users</h3>
+      <div class="table-scroll">
       <table class="ledger-table">
         <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
         <tbody id="users-tbody"></tbody>
       </table>
+      </div>
     </section>
 
   </main>
@@ -282,10 +292,12 @@
     <p class="muted" id="ed-meta"></p>
 
     <h4 class="subhead">Documents</h4>
-    <table class="ledger-table">
+    <div class="table-scroll">
+      <table class="ledger-table">
       <thead><tr><th>Name</th><th>Category</th><th></th></tr></thead>
       <tbody id="ed-documents-tbody"></tbody>
     </table>
+      </div>
     <div class="inline-form">
       <label>Name <input type="text" id="ed-doc-name" /></label>
       <label>Category

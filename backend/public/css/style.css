@@ -495,3 +495,70 @@ textarea:focus {
 }
 .review-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; font-size: 15px; }
 .review-stars { color: var(--brass-dark); letter-spacing: 1px; margin-left: auto; }
+
+/* ---------- Table horizontal scroll ---------- */
+/* Tables can have more columns than a phone screen fits — scroll the table
+   itself instead of forcing the whole page to be pinch-zoomed to read it. */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -2px;
+}
+.table-scroll .ledger-table { min-width: 560px; }
+
+/* ---------- Mobile layout ---------- */
+@media (max-width: 820px) {
+  .app-shell { flex-direction: column; }
+
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    padding: 0 12px;
+    gap: 4px;
+  }
+  .sidebar::before { display: none; } /* the vertical ribbon doesn't translate to a horizontal bar cleanly */
+
+  .brand { margin: 14px 14px 14px 0; white-space: nowrap; }
+
+  .sidebar nav {
+    flex-direction: row;
+    flex: 1;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 2px;
+  }
+  .nav-link {
+    white-space: nowrap;
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding: 12px 12px;
+  }
+  .nav-link:hover { padding-left: 12px; } /* undo the desktop slide-in */
+  .nav-link.active { border-left-color: transparent; border-bottom-color: var(--brass); }
+
+  .sidebar-footer {
+    border-top: none;
+    padding: 0 0 0 8px;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+  }
+  .user-name { display: none; } /* saves space on a phone-width top bar; name still shows once you open a panel */
+
+  .content { padding: 14px; max-width: 100%; }
+  .panel { padding: 18px 16px 26px; }
+  .panel-head h2 { font-size: 19px; }
+
+  .form-grid { grid-template-columns: 1fr; }
+  .inline-form { flex-direction: column; align-items: stretch; gap: 12px; }
+  .inline-form label { min-width: 0; }
+
+  .ledger-table td, .ledger-table th { padding: 10px 8px; font-size: 13px; }
+
+  .modal { width: 94vw; padding: 22px 18px; }
+  .landing-body { padding: 28px 22px 32px; }
+  .landing-body h1 { font-size: 23px; }
+}
