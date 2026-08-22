@@ -30,10 +30,19 @@ app.use('/api/users', userRoutes);
 
 // Serve the frontend (static files) — lives in backend/public so it deploys
 // alongside the API on platforms (like Vercel) that only upload this directory.
+// Cache-Control is set explicitly to always revalidate: without it, browsers
+// and Vercel's edge cache can keep serving an old cached copy of app.js/style.css
+// indefinitely after a deploy, which is exactly what happened here — one
+// device kept running yesterday's JavaScript long after a fix shipped.
 const frontendPath = path.join(__dirname, '../public');
-app.use(express.static(frontendPath));
+app.use(express.static(frontendPath, {
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  },
+}));
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
