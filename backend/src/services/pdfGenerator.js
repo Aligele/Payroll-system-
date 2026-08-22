@@ -246,47 +246,111 @@ function renderP10Pdf(payrollRun, payslips, employerPin) {
  * and the dates they were employed; deliberately does not include salary
  * or any compensation figures.
  */
+// Shield path — same shape used for the GT logo mark in the web app
+// (see index.html's <symbol id="gt-shield-logo">), reused here via
+// pdfkit's SVG path support so the printed certificate carries the same
+// mark instead of looking like a generic unbranded document.
+const SHIELD_PATH = 'M50,4 L91,17 L91,56 Q91,87 64,105 Q57,110 50,114 Q43,110 36,105 Q9,87 9,56 L9,17 Z';
+const BRAND_COLORS = { black: '#14120F', red: '#BB0000', green: '#006600', brass: '#9C6B2E', brassDark: '#7A5322', ink: '#1B231F', inkSoft: '#5B6560' };
+
+/** Draws the flag-banded, brass-bordered shield mark at (x, y) with the given size (in points). */
+function drawShieldLogo(doc, x, y, size) {
+  const scale = size / 118; // path's native viewBox is 100 wide x 118 tall
+  doc.save();
+  doc.translate(x, y).scale(scale);
+
+  doc.save();
+  doc.path(SHIELD_PATH).clip();
+  doc.rect(0, 0, 100, 33).fill(BRAND_COLORS.black);
+  doc.rect(0, 33, 100, 8).fill('#ffffff');
+  doc.rect(0, 41, 100, 36).fill(BRAND_COLORS.red);
+  doc.rect(0, 77, 100, 8).fill('#ffffff');
+  doc.rect(0, 85, 100, 33).fill(BRAND_COLORS.green);
+  doc.restore();
+
+  doc.path(SHIELD_PATH).lineWidth(3).stroke(BRAND_COLORS.brass);
+  doc.font('Times-Bold').fontSize(30).fillColor('#E9C98F').text('GT', 0, 48, { width: 100, align: 'center' });
+  doc.restore();
+}
+
+/** Thin flag-banded ribbon spanning the given width — the same accent used across the web app. */
+function drawRibbon(doc, x, y, width, height) {
+  const black = width * 0.20, white1 = width * 0.04, red = width * 0.24, white2 = width * 0.04, green = width * 0.24;
+  let cx = x;
+  const segs = [[black, BRAND_COLORS.black], [white1, '#ffffff'], [red, BRAND_COLORS.red], [white2, '#ffffff'], [green, BRAND_COLORS.green], [black, BRAND_COLORS.black]];
+  segs.forEach(([w, color]) => { doc.rect(cx, y, w, height).fill(color); cx += w; });
+}
+
 function renderCertificateOfServicePdf(employee, { issueDate } = {}) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 60 });
+    const doc = new PDFDocument({ size: 'A4', margin: 0 });
     const chunks = [];
     doc.on('data', (chunk) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    doc.font('Helvetica-Bold').fontSize(16).text(COMPANY_NAME, { align: 'center' });
-    doc.moveDown(1.5);
-    doc.font('Helvetica-Bold').fontSize(14).text('CERTIFICATE OF SERVICE', { align: 'center' });
-    doc.moveDown(2);
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    const margin = 55;
 
-    const hireDate = employee.hire_date ? new Date(employee.hire_date).toLocaleDateString('en-KE', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
-    const endDate = employee.updated_at ? new Date(employee.updated_at).toLocaleDateString('en-KE', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
-    const issued = (issueDate ? new Date(issueDate) : new Date()).toLocaleDateString('en-KE', { year: 'numeric', month: 'long', day: 'numeric' });
+    // Decorative frame + top ribbon — this is a certificate, so it should look like one.
+    drawRibbon(doc, 0, 0, pageWidth, 8);
+    doc.rect(margin, margin, pageWidth - margin * 2, pageHeight - margin * 2)
+      .lineWidth(1.5).stroke(BRAND_COLORS.brass);
 
-    doc.font('Helvetica').fontSize(11.5).lineGap(6);
+    drawShieldLogo(doc, pageWidth / 2 - 26, margin + 28, 52);
+
+    doc.font('Times-Bold').fontSize(18).fillColor(BRAND_COLORS.ink)
+      .text(COMPANY_NAME, margin, margin + 96, { width: pageWidth - margin * 2, align: 'center' });
+    doc.font('Times-Bold').fontSize(14).fillColor(BRAND_COLORS.brassDark)
+      .text('CERTIFICATE OF SERVICE', { width: pageWidth - margin * 2, align: 'center' });
+
+    doc.moveTo(pageWidth / 2 - 60, doc.y + 8).lineTo(pageWidth / 2 + 60, doc.y + 8)
+      .lineWidth(1).stroke(BRAND_COLORS.brass);
+    doc.moveDown(2.5);
+
+    const fmtDate = (d) => new Date(d).toLocaleDateString('en-KE', { year: 'numeric', month: 'long', day: 'numeric' });
+    const hireDate = employee.hire_date ? fmtDate(employee.hire_date) : null;
+    const isActive = employee.status === 'active';
+    const issued = fmtDate(issueDate || new Date());
+
+    const roleClause = (employee.job_title ? ` as ${employee.job_title}` : '') + (employee.department ? ` in the ${employee.department} department` : '');
+    let periodClause;
+    if (!hireDate) {
+      periodClause = `has been employed by ${COMPANY_NAME}${roleClause}. (Hire date not on record — verify before issuing.)`;
+    } else if (isActive) {
+      periodClause = `has been employed by ${COMPANY_NAME}${roleClause} since ${hireDate}, and remains an employee in good standing as of the date of this certificate.`;
+    } else {
+      const endDate = employee.updated_at ? fmtDate(employee.updated_at) : 'the date their employment ended';
+      periodClause = `was employed by ${COMPANY_NAME}${roleClause} from ${hireDate} to ${endDate}.`;
+    }
+
+    const textX = margin + 40;
+    const textWidth = pageWidth - (margin + 40) * 2;
+    doc.font('Times-Roman').fontSize(12).fillColor(BRAND_COLORS.ink).lineGap(7);
     doc.text(
       `This is to certify that ${employee.first_name} ${employee.last_name}` +
       (employee.id_number ? ` (National ID No. ${employee.id_number})` : '') +
-      ` was employed by ${COMPANY_NAME}` +
-      (employee.job_title ? ` as ${employee.job_title}` : '') +
-      (employee.department ? ` in the ${employee.department} department` : '') +
-      ` from ${hireDate} to ${endDate}.`
+      ` ${periodClause}`,
+      textX, doc.y, { width: textWidth, align: 'left' }
     );
     doc.moveDown(1);
-    doc.text('During this period, their conduct and performance of duties were satisfactory.');
+    doc.text('During this period, their conduct and performance of duties have been satisfactory.', textX, doc.y, { width: textWidth });
     doc.moveDown(1);
-    doc.text('This certificate is issued at the employee\'s request, in accordance with the Employment Act, 2007.');
-    doc.moveDown(3);
+    doc.text('This certificate is issued at the employee\'s request, in accordance with the Employment Act, 2007.', textX, doc.y, { width: textWidth });
+    doc.moveDown(2.5);
 
-    doc.text(`Issued on: ${issued}`);
-    doc.moveDown(3);
-    doc.text('_______________________________');
-    doc.text('For and on behalf of ' + COMPANY_NAME);
+    doc.font('Times-Roman').fontSize(11).text(`Issued on: ${issued}`, textX, doc.y);
+    doc.moveDown(3.5);
+    doc.moveTo(textX, doc.y).lineTo(textX + 220, doc.y).lineWidth(1).stroke(BRAND_COLORS.ink);
+    doc.moveDown(0.4);
+    doc.font('Times-Italic').fontSize(10.5).fillColor(BRAND_COLORS.inkSoft).text('For and on behalf of ' + COMPANY_NAME, textX, doc.y);
 
-    doc.fillColor('#888').fontSize(8).text(
+    doc.font('Helvetica').fontSize(8).fillColor('#999').text(
       'System-generated certificate. Verify employment dates and role details before issuing.',
-      60, 780, { width: 475, align: 'center' }
+      margin, pageHeight - margin - 26, { width: pageWidth - margin * 2, align: 'center' }
     );
+    drawRibbon(doc, 0, pageHeight - 8, pageWidth, 8);
 
     doc.end();
   });
