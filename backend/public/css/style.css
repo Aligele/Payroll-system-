@@ -107,26 +107,18 @@ a, .link-btn {
 }
 .btn-danger-ghost:hover { background: var(--rust-soft); border-color: var(--rust); box-shadow: 0 3px 8px rgba(163,74,52,0.15); }
 
-/* ---------- Kenya flag badge + ribbon accent ---------- */
-/* A precise 5-band strip (black / white / red / white / green) — the same
-   sequencing as the national flag's bands, used as a restrained "official
-   seal" motif rather than a literal flag graphic. */
-.flag-badge {
+/* ---------- G-Tech Africa Ltd logo mark + ribbon accent ---------- */
+/* Shield mark (see the <symbol> definition near the top of body): flag
+   bands inside a shield outline with a brass border and "GT" monogram —
+   the wordmark's company identity. The ribbon accent below is a related
+   but separate motif (a slim certificate-style band), not the same asset. */
+.logo-mark {
   display: inline-block;
-  width: 22px;
-  height: 15px;
-  border-radius: 2px;
+  width: 24px;
+  height: 28px;
   vertical-align: middle;
-  margin-right: 2px;
-  box-shadow: 0 0 0 1px rgba(27,35,31,0.15), 0 1px 2px rgba(27,35,31,0.2);
-  background: linear-gradient(
-    to bottom,
-    var(--ke-black) 0%, var(--ke-black) 28%,
-    #fff 28%, #fff 36%,
-    var(--ke-red) 36%, var(--ke-red) 64%,
-    #fff 64%, #fff 72%,
-    var(--ke-green) 72%, var(--ke-green) 100%
-  );
+  margin-right: 4px;
+  filter: drop-shadow(0 1px 2px rgba(27,35,31,0.25));
 }
 .ribbon-accent {
   height: 4px;
@@ -218,6 +210,8 @@ a, .link-btn {
   color: var(--brass-dark);
   letter-spacing: 0.02em;
   margin-bottom: 22px;
+  display: flex;
+  align-items: center;
 }
 .auth-card h1 {
   font-family: var(--font-display);
@@ -291,6 +285,8 @@ input:focus, select:focus {
   color: #E9C98F;
   margin: 24px 0 30px;
   padding-left: 6px;
+  display: flex;
+  align-items: center;
 }
 .sidebar nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
 .nav-link {

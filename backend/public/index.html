@@ -11,12 +11,34 @@
 <body>
 <div class="flag-page-bg" aria-hidden="true"></div>
 
+<!-- G-Tech Africa Ltd logo mark — defined once, used everywhere via <use> -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="gt-shield-logo" viewBox="0 0 100 118">
+    <defs>
+      <clipPath id="gt-shield-clip">
+        <path d="M50,4 L91,17 L91,56 Q91,87 64,105 Q57,110 50,114 Q43,110 36,105 Q9,87 9,56 L9,17 Z" />
+      </clipPath>
+    </defs>
+    <g clip-path="url(#gt-shield-clip)">
+      <rect x="0" y="0" width="100" height="28" fill="#14120F" />
+      <rect x="0" y="28" width="100" height="7" fill="#fff" />
+      <rect x="0" y="35" width="100" height="48" fill="#BB0000" />
+      <rect x="0" y="83" width="100" height="7" fill="#fff" />
+      <rect x="0" y="90" width="100" height="28" fill="#006600" />
+    </g>
+    <path d="M50,4 L91,17 L91,56 Q91,87 64,105 Q57,110 50,114 Q43,110 36,105 Q9,87 9,56 L9,17 Z"
+          fill="none" stroke="#9C6B2E" stroke-width="3" />
+    <text x="50" y="66" text-anchor="middle" font-family="Lora, Georgia, serif" font-weight="600"
+          font-size="34" fill="#E9C98F" stroke="#14120F" stroke-width="0.6">GT</text>
+  </symbol>
+</svg>
+
 <!-- LANDING / PORTFOLIO VIEW -->
 <div id="view-landing" class="landing-screen">
   <div class="landing-card">
     <div class="ribbon-accent"></div>
     <div class="landing-body">
-      <div class="auth-mark"><span class="flag-badge" aria-hidden="true"></span> Ledger</div>
+      <div class="auth-mark"><svg class="logo-mark" viewBox="0 0 100 118" aria-hidden="true"><use href="#gt-shield-logo"/></svg> Ledger</div>
       <h1>HR &amp; Payroll Management System</h1>
       <p class="landing-sub">Built for G-Tech Africa Ltd — payroll processing, statutory compliance, and HR administration, all in one place.</p>
 
@@ -48,7 +70,7 @@
   <div class="auth-card">
     <div class="ribbon-accent"></div>
     <div class="auth-card-body">
-      <div class="auth-mark"><span class="flag-badge" aria-hidden="true"></span> Ledger</div>
+      <div class="auth-mark"><svg class="logo-mark" viewBox="0 0 100 118" aria-hidden="true"><use href="#gt-shield-logo"/></svg> Ledger</div>
       <h1>Sign in to payroll</h1>
       <p class="muted">PAYE · SHA · NSSF · Housing Levy — computed automatically.</p>
       <form id="login-form">
@@ -70,7 +92,7 @@
 <!-- APP SHELL -->
 <div id="view-app" class="app-shell hidden">
   <aside class="sidebar">
-    <div class="brand"><span class="flag-badge" aria-hidden="true"></span> Ledger</div>
+    <div class="brand"><svg class="logo-mark" viewBox="0 0 100 118" aria-hidden="true"><use href="#gt-shield-logo"/></svg> Ledger</div>
     <nav>
       <button class="nav-link active" data-view="employees">Employees</button>
       <button class="nav-link" data-view="leave">Leave</button>
