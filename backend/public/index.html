@@ -219,7 +219,8 @@
         <label>Password <input type="password" id="u-password" placeholder="min. 8 characters" /></label>
         <label>Role
           <select id="u-role">
-            <option value="staff">Staff</option>
+            <option value="staff">Staff (full access except users)</option>
+            <option value="hr_staff">HR staff (no payroll/salary access)</option>
             <option value="admin">Admin</option>
           </select>
         </label>
@@ -292,7 +293,7 @@
         <label>KRA PIN <input type="text" id="f-kraPin" /></label>
         <label>NSSF No. <input type="text" id="f-nssfNumber" /></label>
         <label>SHA No. <input type="text" id="f-shaNumber" /></label>
-        <label>Basic salary (KES) <input type="number" id="f-basicSalary" min="0" step="0.01" required /></label>
+        <label class="payroll-field">Basic salary (KES) <input type="number" id="f-basicSalary" min="0" step="0.01" /></label>
         <label>Emergency contact name <input type="text" id="f-emergencyContactName" /></label>
         <label>Emergency contact phone <input type="text" id="f-emergencyContactPhone" /></label>
       </div>

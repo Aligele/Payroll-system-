@@ -23,7 +23,7 @@ router.post('/', async (req, res) => {
     if (password.length < 8) {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
-    const finalRole = role === 'admin' ? 'admin' : 'staff';
+    const finalRole = ['admin', 'hr_staff'].includes(role) ? role : 'staff';
 
     const hash = await bcrypt.hash(password, 10);
     const { rows } = await pool.query(
@@ -49,7 +49,7 @@ router.put('/:id', async (req, res) => {
     let i = 1;
 
     if (role) {
-      if (!['admin', 'staff'].includes(role)) return res.status(400).json({ error: 'role must be admin or staff' });
+      if (!['admin', 'staff', 'hr_staff'].includes(role)) return res.status(400).json({ error: 'role must be admin, staff, or hr_staff' });
       updates.push(`role = $${i++}`);
       values.push(role);
     }
@@ -61,7 +61,7 @@ router.put('/:id', async (req, res) => {
 
     // Guard: don't allow deactivating or demoting the very last active admin,
     // or every user could get locked out of user management entirely.
-    if ((role === 'staff' || isActive === false)) {
+    if ((role && role !== 'admin') || isActive === false) {
       const { rows: admins } = await pool.query(
         `SELECT id FROM users WHERE role = 'admin' AND is_active = true`
       );

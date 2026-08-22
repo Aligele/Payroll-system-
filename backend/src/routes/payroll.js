@@ -1,5 +1,5 @@
 const express = require('express');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
 const { runPayroll, getPayrollRun, listPayrollRuns } = require('../services/payrollService');
 const { calculatePayslip } = require('../services/statutoryDeductions');
 const { getActiveRateSet } = require('../services/payrollService');
@@ -8,6 +8,7 @@ const pool = require('../config/db');
 
 const router = express.Router();
 router.use(requireAuth);
+router.use(requireRole('admin', 'staff')); // hr_staff has no payroll/salary access at all
 
 // List all payroll runs (history)
 router.get('/runs', async (req, res) => {

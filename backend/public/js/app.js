@@ -34,6 +34,17 @@ function showApp() {
   $('#view-app').classList.remove('hidden');
   $('#user-name').textContent = state.user ? state.user.name : '';
   if (!state.user || state.user.role !== 'admin') $('#nav-users').classList.add('hidden');
+  if (state.user && state.user.role === 'hr_staff') {
+    // hr_staff has no payroll/salary access — hide those nav items and form fields
+    // (the backend enforces this independently; this just keeps the UI honest).
+    ['run-payroll', 'history', 'p9'].forEach((view) => {
+      const link = document.querySelector(`.nav-link[data-view="${view}"]`);
+      if (link) link.classList.add('hidden');
+    });
+    document.querySelectorAll('.payroll-field').forEach((el) => el.classList.add('hidden'));
+    const salaryHeader = document.querySelector('#panel-employees thead th.num');
+    if (salaryHeader) salaryHeader.classList.add('hidden');
+  }
   loadEmployees();
 }
 
@@ -89,6 +100,7 @@ $$('.nav-link').forEach((btn) => {
 async function loadEmployees() {
   const employees = await api('/employees');
   const tbody = $('#employees-tbody');
+  const hideSalary = state.user && state.user.role === 'hr_staff';
   tbody.innerHTML = '';
   employees.forEach((emp) => {
     const tr = document.createElement('tr');
@@ -97,7 +109,7 @@ async function loadEmployees() {
       <td>${emp.first_name} ${emp.last_name}</td>
       <td>${emp.department || '—'}</td>
       <td>${emp.job_title || '—'}</td>
-      <td class="num">${fmtMoney(emp.basic_salary)}</td>
+      ${hideSalary ? '' : `<td class="num">${fmtMoney(emp.basic_salary)}</td>`}
       <td><span class="status-pill status-${emp.status}">${emp.status}</span></td>
       <td></td>
     `;
@@ -126,10 +138,10 @@ $('#employee-form').addEventListener('submit', async (e) => {
     kraPin: $('#f-kraPin').value.trim() || null,
     nssfNumber: $('#f-nssfNumber').value.trim() || null,
     shaNumber: $('#f-shaNumber').value.trim() || null,
-    basicSalary: Number($('#f-basicSalary').value),
     emergencyContactName: $('#f-emergencyContactName').value.trim() || null,
     emergencyContactPhone: $('#f-emergencyContactPhone').value.trim() || null,
   };
+  if ($('#f-basicSalary').value !== '') payload.basicSalary = Number($('#f-basicSalary').value);
   try {
     await api('/employees', { method: 'POST', body: JSON.stringify(payload) });
     $('#employee-modal').classList.add('hidden');
@@ -586,19 +598,25 @@ async function loadUsers() {
   const users = await api('/users');
   const tbody = $('#users-tbody');
   tbody.innerHTML = '';
+  const ROLE_LABELS = { admin: 'Admin', staff: 'Staff', hr_staff: 'HR staff' };
   users.forEach((u) => {
     const isSelf = state.user && u.id === state.user.id;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${u.name}${isSelf ? ' <span class="muted">(you)</span>' : ''}</td>
       <td>${u.email}</td>
-      <td><span class="status-pill status-${u.role === 'admin' ? 'active' : 'draft'}">${u.role}</span></td>
+      <td>
+        ${isSelf ? `<span class="status-pill status-active">${ROLE_LABELS[u.role]}</span>` : `
+          <select class="role-select" data-user-id="${u.id}">
+            <option value="staff" ${u.role === 'staff' ? 'selected' : ''}>Staff</option>
+            <option value="hr_staff" ${u.role === 'hr_staff' ? 'selected' : ''}>HR staff</option>
+            <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
+          </select>
+        `}
+      </td>
       <td><span class="status-pill status-${u.is_active ? 'active' : 'terminated'}">${u.is_active ? 'active' : 'deactivated'}</span></td>
       <td>
         ${!isSelf ? `
-          <button class="link-btn" data-toggle-role="${u.id}" data-current-role="${u.role}">
-            Make ${u.role === 'admin' ? 'staff' : 'admin'}
-          </button> ·
           <button class="link-btn" data-toggle-active="${u.id}" data-current-active="${u.is_active}">
             ${u.is_active ? 'Deactivate' : 'Reactivate'}
           </button>
@@ -608,13 +626,12 @@ async function loadUsers() {
     tbody.appendChild(tr);
   });
 
-  tbody.querySelectorAll('[data-toggle-role]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const newRole = btn.dataset.currentRole === 'admin' ? 'staff' : 'admin';
+  tbody.querySelectorAll('.role-select').forEach((select) => {
+    select.addEventListener('change', async () => {
       try {
-        await api(`/users/${btn.dataset.toggleRole}`, { method: 'PUT', body: JSON.stringify({ role: newRole }) });
+        await api(`/users/${select.dataset.userId}`, { method: 'PUT', body: JSON.stringify({ role: select.value }) });
         loadUsers();
-      } catch (err) { alert(err.message); }
+      } catch (err) { alert(err.message); loadUsers(); }
     });
   });
   tbody.querySelectorAll('[data-toggle-active]').forEach((btn) => {
