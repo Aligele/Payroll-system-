@@ -22,9 +22,34 @@ async function api(path, options = {}) {
       ...(options.headers || {}),
     },
   });
+
+  if (res.status === 401) {
+    handleSessionExpired();
+    const err = new Error('Session expired');
+    err.sessionExpired = true;
+    throw err;
+  }
+
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
+}
+
+// Shows the raw error unless it's the session-expiry case (that's already
+// handled by a full-screen redirect with its own message — piling an alert
+// on top of it is just noise).
+function reportError(err) {
+  if (err && err.sessionExpired) return;
+  alert(err.message);
+}
+
+function handleSessionExpired() {
+  state.token = null;
+  state.user = null;
+  localStorage.removeItem('payroll_token');
+  localStorage.removeItem('payroll_user');
+  showLogin();
+  $('#login-error').textContent = 'Your session expired — sign in again to continue. Any unsaved employee draft was kept.';
 }
 
 /* ---------------- Auth ---------------- */
@@ -118,12 +143,48 @@ async function loadEmployees() {
   });
 }
 
+/* ---------------- Employee form draft auto-save ----------------
+   Guards against exactly what happened before: a session expiring (or the
+   tab closing, or anything else interrupting) mid-form loses everything
+   typed. Saved continuously to localStorage, restored next time the
+   "Add employee" modal opens, cleared on successful save or explicit Cancel. */
+
+const EMPLOYEE_DRAFT_KEY = 'employee_form_draft';
+const EMPLOYEE_FIELD_IDS = [
+  'f-employeeNo', 'f-firstName', 'f-lastName', 'f-email', 'f-department', 'f-jobTitle',
+  'f-employmentType', 'f-kraPin', 'f-nssfNumber', 'f-shaNumber', 'f-basicSalary',
+  'f-emergencyContactName', 'f-emergencyContactPhone',
+];
+
+function saveEmployeeDraft() {
+  const draft = {};
+  EMPLOYEE_FIELD_IDS.forEach((id) => { draft[id] = $(`#${id}`).value; });
+  localStorage.setItem(EMPLOYEE_DRAFT_KEY, JSON.stringify(draft));
+}
+function clearEmployeeDraft() { localStorage.removeItem(EMPLOYEE_DRAFT_KEY); }
+
+$('#employee-form').addEventListener('input', saveEmployeeDraft);
+
 $('#add-employee-btn').addEventListener('click', () => {
   $('#employee-form').reset();
   $('#employee-error').textContent = '';
+
+  const savedDraft = localStorage.getItem(EMPLOYEE_DRAFT_KEY);
+  if (savedDraft) {
+    const draft = JSON.parse(savedDraft);
+    EMPLOYEE_FIELD_IDS.forEach((id) => { if (draft[id]) $(`#${id}`).value = draft[id]; });
+    $('#employee-error').textContent = 'Restored your unsaved draft from before.';
+    $('#employee-error').style.color = 'var(--forest)';
+  } else {
+    $('#employee-error').style.color = '';
+  }
+
   $('#employee-modal').classList.remove('hidden');
 });
-$('#employee-cancel').addEventListener('click', () => $('#employee-modal').classList.add('hidden'));
+$('#employee-cancel').addEventListener('click', () => {
+  clearEmployeeDraft();
+  $('#employee-modal').classList.add('hidden');
+});
 
 $('#employee-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -144,10 +205,16 @@ $('#employee-form').addEventListener('submit', async (e) => {
   if ($('#f-basicSalary').value !== '') payload.basicSalary = Number($('#f-basicSalary').value);
   try {
     await api('/employees', { method: 'POST', body: JSON.stringify(payload) });
+    clearEmployeeDraft();
     $('#employee-modal').classList.add('hidden');
     loadEmployees();
   } catch (err) {
-    $('#employee-error').textContent = err.message;
+    if (!err.sessionExpired) {
+      $('#employee-error').style.color = '';
+      $('#employee-error').textContent = err.message;
+    }
+    // On session expiry the draft is deliberately left in place — it'll be
+    // there waiting when they log back in and reopen "Add employee".
   }
 });
 
@@ -209,7 +276,7 @@ $('#ed-terminate').addEventListener('click', async () => {
     $('#employee-detail-modal').classList.add('hidden');
     loadEmployees();
   } catch (err) {
-    alert(err.message);
+    reportError(err);
   }
 });
 
@@ -220,7 +287,7 @@ $('#ed-delete').addEventListener('click', async () => {
     $('#employee-detail-modal').classList.add('hidden');
     loadEmployees();
   } catch (err) {
-    alert(err.message);
+    reportError(err);
   }
 });
 
@@ -560,7 +627,7 @@ $('#payslip-download').addEventListener('click', async () => {
   try {
     await downloadFile(`/payroll/payslips/${currentPayslipId}/pdf`, 'payslip.pdf');
   } catch (err) {
-    alert(err.message);
+    reportError(err);
   }
 });
 
@@ -653,7 +720,7 @@ async function loadUsers() {
       try {
         await api(`/users/${select.dataset.userId}`, { method: 'PUT', body: JSON.stringify({ role: select.value }) });
         loadUsers();
-      } catch (err) { alert(err.message); loadUsers(); }
+      } catch (err) { reportError(err); loadUsers(); }
     });
   });
   tbody.querySelectorAll('[data-toggle-active]').forEach((btn) => {
@@ -662,7 +729,7 @@ async function loadUsers() {
       try {
         await api(`/users/${btn.dataset.toggleActive}`, { method: 'PUT', body: JSON.stringify({ isActive: newActive }) });
         loadUsers();
-      } catch (err) { alert(err.message); }
+      } catch (err) { reportError(err); }
     });
   });
 }
