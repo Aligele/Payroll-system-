@@ -1,9 +1,11 @@
 const express = require('express');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const { runPayroll, getPayrollRun, listPayrollRuns } = require('../services/payrollService');
+const {
+  runPayroll, getPayrollRun, listPayrollRuns, getActiveRateSet,
+  getRemittances, recordRemittancePayment,
+} = require('../services/payrollService');
 const { calculatePayslip } = require('../services/statutoryDeductions');
-const { getActiveRateSet } = require('../services/payrollService');
-const { renderPayslipPdf, renderP9Pdf } = require('../services/pdfGenerator');
+const { renderPayslipPdf, renderP9Pdf, renderP10Pdf } = require('../services/pdfGenerator');
 const { generateMpesaCsv, generateBankCsv } = require('../services/paymentExport');
 const pool = require('../config/db');
 
@@ -165,6 +167,56 @@ router.get('/runs/:id/export/bank', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to generate bank payment file' });
+  }
+});
+
+// Monthly PAYE return (P10) for a processed run.
+router.get('/runs/:id/p10', async (req, res) => {
+  try {
+    const result = await getPayrollRun(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Payroll run not found' });
+
+    const { rows: employeesWithPin } = await pool.query(
+      `SELECT p.employee_id, e.kra_pin FROM payslips p JOIN employees e ON e.id = p.employee_id WHERE p.payroll_run_id = $1`,
+      [req.params.id]
+    );
+    const pinByEmployee = Object.fromEntries(employeesWithPin.map((r) => [r.employee_id, r.kra_pin]));
+    const payslipsWithPin = result.payslips.map((p) => ({ ...p, kra_pin: pinByEmployee[p.employee_id] }));
+
+    const pdfBuffer = await renderP10Pdf(result.payrollRun, payslipsWithPin, process.env.EMPLOYER_KRA_PIN || null);
+
+    const filename = `P10-${result.payrollRun.period_year}-${String(result.payrollRun.period_month).padStart(2, '0')}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to generate P10 return' });
+  }
+});
+
+// Remittance status: what's owed to KRA/NSSF/SHA/Housing Levy for this run,
+// and whether/when it was actually paid.
+router.get('/runs/:id/remittances', async (req, res) => {
+  const remittances = await getRemittances(req.params.id);
+  res.json(remittances);
+});
+
+router.post('/runs/:id/remittances/:type/pay', async (req, res) => {
+  try {
+    const { type } = req.params;
+    if (!['paye', 'nssf', 'sha', 'housing_levy'].includes(type)) {
+      return res.status(400).json({ error: 'Invalid remittance type' });
+    }
+    const { referenceNumber, paidDate, notes } = req.body;
+    const updated = await recordRemittancePayment(req.params.id, type, {
+      referenceNumber, paidDate, notes, paidBy: req.user.sub,
+    });
+    if (!updated) return res.status(404).json({ error: 'Remittance record not found for this run/type' });
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to record remittance payment' });
   }
 });
 

@@ -14,6 +14,14 @@
  * Housing Act 2024. Verify against kra.go.ke / nssf.or.ke / sha.go.ke
  * before going live — a Finance Bill 2026 proposing new PAYE bands from
  * 1 Jan 2027 was still before Parliament at the time this was written.
+ *
+ * Overtime and deduction-cap figures come from the Employment Act 2007:
+ * §19 caps total deductions at two-thirds of wages; overtime multipliers
+ * (1.5x / 2x) are standard Regulation of Wages practice. The hours-per-month
+ * divisor used to derive an hourly rate from a monthly salary is NOT set in
+ * statute — 195 is a commonly used figure (26 days x 7.5 hrs) but employers
+ * vary; check your own contracts/CBA and adjust standardMonthlyHours below
+ * if it doesn't match.
  */
 
 const DEFAULT_RATE_CONFIG = {
@@ -43,6 +51,16 @@ const DEFAULT_RATE_CONFIG = {
   housingLevy: {
     employeeRate: 0.015,
     employerRate: 0.015,
+  },
+  overtime: {
+    standardMonthlyHours: 195, // see note above — verify against your own contracts
+    weekdayMultiplier: 1.5,
+    restDayHolidayMultiplier: 2.0,
+  },
+  deductionCap: {
+    // Employment Act §19: total deductions (statutory + other) may not
+    // exceed this fraction of gross pay.
+    maxFractionOfGross: 2 / 3,
   },
 };
 

@@ -157,6 +157,7 @@
       <button class="nav-link" data-view="leave"><svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-leave"/></svg> Leave</button>
       <button class="nav-link" data-view="attendance"><svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-attendance"/></svg> Attendance</button>
       <button class="nav-link" data-view="performance"><svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-performance"/></svg> Performance</button>
+      <button class="nav-link" data-view="compliance"><svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-users"/></svg> Compliance</button>
 
       <div class="nav-section-label" id="nav-payroll-label">PAYROLL</div>
       <button class="nav-link" data-view="run-payroll"><svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-payroll"/></svg> Run payroll</button>
@@ -277,6 +278,26 @@
       </div>
       <button type="button" class="btn btn-primary" id="att-save">Save attendance</button>
       <p class="form-error" id="att-error"></p>
+
+      <h3 class="subhead">Overtime</h3>
+      <p class="muted">Logged hours are picked up automatically the next time payroll runs for that employee's period — 1.5× on weekdays, 2× on rest days/public holidays.</p>
+      <div class="form-grid">
+        <label>Employee <select id="ot-employee"></select></label>
+        <label>Date <input type="date" id="ot-date" /></label>
+        <label>Hours <input type="number" id="ot-hours" min="0" step="0.25" /></label>
+        <label>Type
+          <select id="ot-rate-type">
+            <option value="weekday">Weekday (1.5×)</option>
+            <option value="rest_day_holiday">Rest day / public holiday (2×)</option>
+          </select>
+        </label>
+      </div>
+      <button type="button" class="btn btn-ghost" id="ot-submit">Log overtime</button>
+      <p class="form-error" id="ot-error"></p>
+      <table class="ledger-table">
+        <thead><tr><th>Employee</th><th>Date</th><th class="num">Hours</th><th>Type</th><th>Status</th><th></th></tr></thead>
+        <tbody id="overtime-tbody"></tbody>
+      </table>
     </section>
 
     <!-- PERFORMANCE -->
@@ -311,6 +332,31 @@
         <label>Filter by employee <select id="pf-filter-employee"><option value="">All employees</option></select></label>
       </div>
       <div id="perf-list"></div>
+    </section>
+
+    <!-- COMPLIANCE (WIBA) -->
+    <section id="panel-compliance" class="panel hidden">
+      <div class="panel-head">
+        <h2>Compliance</h2>
+      </div>
+      <p class="muted">Work Injury Benefits Act (WIBA) cover is mandatory employer insurance — tracked here at the company level, not per employee.</p>
+
+      <h3 class="subhead">Add a policy</h3>
+      <div class="form-grid">
+        <label>Insurer <input type="text" id="wiba-insurer" /></label>
+        <label>Policy number <input type="text" id="wiba-policy-number" /></label>
+        <label>Coverage start <input type="date" id="wiba-start" /></label>
+        <label>Coverage end <input type="date" id="wiba-end" /></label>
+        <label>Premium (KES) <input type="number" id="wiba-premium" min="0" step="0.01" /></label>
+      </div>
+      <button type="button" class="btn btn-primary" id="wiba-submit">Save policy</button>
+      <p class="form-error" id="wiba-error"></p>
+
+      <h3 class="subhead">Policy history</h3>
+      <table class="ledger-table">
+        <thead><tr><th>Insurer</th><th>Policy No.</th><th>Coverage</th><th>Status</th></tr></thead>
+        <tbody id="wiba-tbody"></tbody>
+      </table>
     </section>
 
     <!-- P9 FORMS -->
@@ -398,6 +444,8 @@
         <label>Link <input type="text" id="ed-doc-link" placeholder="optional URL" /></label>
         <button type="button" class="btn btn-ghost" id="ed-doc-add">Add</button>
       </div>
+
+      <button type="button" class="btn btn-ghost" id="ed-certificate" style="margin-top:16px;">Download Certificate of Service</button>
     </div>
 
     <div class="modal-actions modal-actions-split">

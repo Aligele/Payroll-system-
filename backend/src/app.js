@@ -11,6 +11,8 @@ const attendanceRoutes = require('./routes/attendance');
 const performanceRoutes = require('./routes/performance');
 const documentRoutes = require('./routes/documents');
 const userRoutes = require('./routes/users');
+const overtimeRoutes = require('./routes/overtime');
+const wibaRoutes = require('./routes/wiba');
 
 const app = express();
 
@@ -27,6 +29,8 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/performance', performanceRoutes);
 app.use('/api/employees/:employeeId/documents', documentRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/overtime', overtimeRoutes);
+app.use('/api/wiba', wibaRoutes);
 
 // Serve the frontend (static files) — lives in backend/public so it deploys
 // alongside the API on platforms (like Vercel) that only upload this directory.

@@ -163,4 +163,133 @@ function renderP9Pdf(employee, monthlyPayslips, year) {
   });
 }
 
-module.exports = { renderPayslipPdf, renderP9Pdf };
+/**
+ * Renders KRA's monthly PAYE return (P10) for one payroll run — every
+ * active employee's PAYE for that single month, as opposed to the P9's
+ * one-employee-across-a-year view. This is what's actually filed on iTax
+ * each month; the P9 is only produced annually.
+ *
+ * This is a computed summary for your own records, not an official
+ * KRA-issued document — reconcile against what's actually filed on iTax.
+ */
+function renderP10Pdf(payrollRun, payslips, employerPin) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: 'A4', margin: 40, layout: 'landscape' });
+    const chunks = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    doc.font('Helvetica-Bold').fontSize(15).text(COMPANY_NAME);
+    doc.font('Helvetica-Bold').fontSize(12).fillColor('#555').text('MONTHLY PAYE RETURN (P10)');
+    doc.moveDown(0.3);
+    doc.font('Helvetica').fontSize(10).fillColor('#000');
+    doc.text(`Employer PIN: ${employerPin || 'N/A'}    Period: ${MONTHS[payrollRun.period_month - 1]} ${payrollRun.period_year}`);
+    doc.moveDown(0.8);
+
+    const headers = ['Employee', 'KRA PIN', 'Basic Salary', 'Allowances', 'Gross Pay', 'NSSF', 'Taxable Pay', 'Tax Charged', 'Relief', 'PAYE Tax'];
+    const colWidths = [95, 75, 75, 70, 75, 65, 75, 75, 60, 75];
+    const startX = 40;
+    let y = doc.y;
+
+    const drawRow = (cells, opts = {}) => {
+      let x = startX;
+      doc.font(opts.bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(8.5);
+      cells.forEach((cell, i) => {
+        doc.text(String(cell), x, y, { width: colWidths[i], align: i < 2 ? 'left' : 'right' });
+        x += colWidths[i];
+      });
+      y += 17;
+    };
+
+    drawRow(headers, { bold: true });
+    doc.moveTo(startX, y - 3).lineTo(startX + colWidths.reduce((a, b) => a + b, 0), y - 3).strokeColor('#999').stroke();
+
+    const totals = { basic: 0, allowances: 0, gross: 0, nssf: 0, taxable: 0, tax: 0, relief: 0, paye: 0 };
+    payslips.forEach((p) => {
+      const allowances = Number(p.taxable_allowances) + Number(p.non_taxable_allowances) + Number(p.overtime_pay || 0);
+      totals.basic += Number(p.basic_salary);
+      totals.allowances += allowances;
+      totals.gross += Number(p.gross_pay);
+      totals.nssf += Number(p.nssf_total);
+      totals.taxable += Number(p.taxable_income);
+      totals.tax += Number(p.paye_before_relief);
+      totals.relief += Number(p.personal_relief);
+      totals.paye += Number(p.paye);
+      drawRow([
+        `${p.first_name} ${p.last_name}`, p.kra_pin || 'N/A', fmt(p.basic_salary), fmt(allowances),
+        fmt(p.gross_pay), fmt(p.nssf_total), fmt(p.taxable_income), fmt(p.paye_before_relief),
+        fmt(p.personal_relief), fmt(p.paye),
+      ]);
+    });
+
+    doc.moveTo(startX, y - 2).lineTo(startX + colWidths.reduce((a, b) => a + b, 0), y - 2).strokeColor('#333').stroke();
+    y += 4;
+    drawRow([
+      'TOTAL', '', fmt(totals.basic), fmt(totals.allowances), fmt(totals.gross),
+      fmt(totals.nssf), fmt(totals.taxable), fmt(totals.tax), fmt(totals.relief), fmt(totals.paye),
+    ], { bold: true });
+
+    doc.font('Helvetica').fontSize(8).fillColor('#888').text(
+      'This is a computed summary generated from payroll records, not an official KRA-issued document. ' +
+      'Reconcile against the actual PAYE return filed on iTax before relying on it.',
+      40, 540, { width: 760 }
+    );
+
+    doc.end();
+  });
+}
+
+/**
+ * Renders a Certificate of Service — required under the Employment Act
+ * when an employee's service ends. States who they were, what they did,
+ * and the dates they were employed; deliberately does not include salary
+ * or any compensation figures.
+ */
+function renderCertificateOfServicePdf(employee, { issueDate } = {}) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: 'A4', margin: 60 });
+    const chunks = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    doc.font('Helvetica-Bold').fontSize(16).text(COMPANY_NAME, { align: 'center' });
+    doc.moveDown(1.5);
+    doc.font('Helvetica-Bold').fontSize(14).text('CERTIFICATE OF SERVICE', { align: 'center' });
+    doc.moveDown(2);
+
+    const hireDate = employee.hire_date ? new Date(employee.hire_date).toLocaleDateString('en-KE', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+    const endDate = employee.updated_at ? new Date(employee.updated_at).toLocaleDateString('en-KE', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+    const issued = (issueDate ? new Date(issueDate) : new Date()).toLocaleDateString('en-KE', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    doc.font('Helvetica').fontSize(11.5).lineGap(6);
+    doc.text(
+      `This is to certify that ${employee.first_name} ${employee.last_name}` +
+      (employee.id_number ? ` (National ID No. ${employee.id_number})` : '') +
+      ` was employed by ${COMPANY_NAME}` +
+      (employee.job_title ? ` as ${employee.job_title}` : '') +
+      (employee.department ? ` in the ${employee.department} department` : '') +
+      ` from ${hireDate} to ${endDate}.`
+    );
+    doc.moveDown(1);
+    doc.text('During this period, their conduct and performance of duties were satisfactory.');
+    doc.moveDown(1);
+    doc.text('This certificate is issued at the employee\'s request, in accordance with the Employment Act, 2007.');
+    doc.moveDown(3);
+
+    doc.text(`Issued on: ${issued}`);
+    doc.moveDown(3);
+    doc.text('_______________________________');
+    doc.text('For and on behalf of ' + COMPANY_NAME);
+
+    doc.fillColor('#888').fontSize(8).text(
+      'System-generated certificate. Verify employment dates and role details before issuing.',
+      60, 780, { width: 475, align: 'center' }
+    );
+
+    doc.end();
+  });
+}
+
+module.exports = { renderPayslipPdf, renderP9Pdf, renderP10Pdf, renderCertificateOfServicePdf };

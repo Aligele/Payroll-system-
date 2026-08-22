@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
+const { renderCertificateOfServicePdf } = require('../services/pdfGenerator');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -146,6 +147,24 @@ router.delete('/:id/permanent', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to delete employee' });
+  }
+});
+
+// Certificate of Service — Employment Act requirement on end of service.
+// No salary/compensation figures on it, so it's fine for hr_staff too.
+router.get('/:id/certificate-of-service', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM employees WHERE id = $1', [req.params.id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Employee not found' });
+
+    const pdfBuffer = await renderCertificateOfServicePdf(rows[0]);
+    const filename = `certificate-of-service-${rows[0].employee_no}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to generate certificate of service' });
   }
 });
 

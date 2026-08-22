@@ -183,6 +183,7 @@ $$('.nav-link').forEach((btn) => {
     if (btn.dataset.view === 'attendance') initAttendanceTab();
     if (btn.dataset.view === 'performance') initPerformanceTab();
     if (btn.dataset.view === 'users') loadUsers();
+    if (btn.dataset.view === 'compliance') initComplianceTab();
     closeDrawer(); // no-op on desktop, closes the off-canvas menu on mobile
   });
 });
@@ -337,6 +338,14 @@ $('#ed-doc-add').addEventListener('click', async () => {
 
 $('#employee-detail-close').addEventListener('click', () => $('#employee-detail-modal').classList.add('hidden'));
 
+$('#ed-certificate').addEventListener('click', async () => {
+  try {
+    await downloadFile(`/employees/${currentDetailEmployeeId}/certificate-of-service`, 'certificate-of-service.pdf');
+  } catch (err) {
+    reportError(err);
+  }
+});
+
 $('#ed-terminate').addEventListener('click', async () => {
   if (!confirm('Mark this employee as terminated? Their records stay intact, but they\'ll be excluded from future payroll runs.')) return;
   try {
@@ -461,6 +470,7 @@ const ATTENDANCE_STATUSES = ['present', 'absent', 'late', 'on_leave', 'holiday']
 function initAttendanceTab() {
   if (!$('#att-date').value) $('#att-date').value = new Date().toISOString().slice(0, 10);
   loadAttendance();
+  initOvertimeSection();
 }
 
 $('#att-load').addEventListener('click', loadAttendance);
@@ -498,6 +508,101 @@ $('#att-save').addEventListener('click', async () => {
     $('#att-error').textContent = err.message;
   }
 });
+
+/* ---------------- Overtime ---------------- */
+
+async function initOvertimeSection() {
+  await populateEmployeeSelect($('#ot-employee'));
+  if (!$('#ot-date').value) $('#ot-date').value = new Date().toISOString().slice(0, 10);
+  loadOvertimeEntries();
+}
+
+$('#ot-submit').addEventListener('click', async () => {
+  $('#ot-error').textContent = '';
+  try {
+    await api('/overtime', {
+      method: 'POST',
+      body: JSON.stringify({
+        employeeId: $('#ot-employee').value,
+        date: $('#ot-date').value,
+        hours: Number($('#ot-hours').value),
+        rateType: $('#ot-rate-type').value,
+      }),
+    });
+    $('#ot-hours').value = '';
+    loadOvertimeEntries();
+  } catch (err) {
+    $('#ot-error').textContent = err.message;
+  }
+});
+
+async function loadOvertimeEntries() {
+  const entries = await api('/overtime');
+  const tbody = $('#overtime-tbody');
+  tbody.innerHTML = '';
+  entries.forEach((e) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${e.first_name} ${e.last_name}</td>
+      <td>${e.date.slice(0, 10)}</td>
+      <td class="num">${e.hours}</td>
+      <td>${e.rate_type === 'rest_day_holiday' ? 'Rest day / holiday (2×)' : 'Weekday (1.5×)'}</td>
+      <td><span class="status-pill status-${e.payroll_run_id ? 'active' : 'draft'}">${e.payroll_run_id ? 'applied' : 'pending'}</span></td>
+      <td>${!e.payroll_run_id ? `<button class="link-btn" data-remove-ot="${e.id}">Remove</button>` : ''}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('[data-remove-ot]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      await api(`/overtime/${btn.dataset.removeOt}`, { method: 'DELETE' });
+      loadOvertimeEntries();
+    });
+  });
+}
+
+/* ---------------- Compliance (WIBA) ---------------- */
+
+async function initComplianceTab() {
+  loadWibaPolicies();
+}
+
+$('#wiba-submit').addEventListener('click', async () => {
+  $('#wiba-error').textContent = '';
+  try {
+    await api('/wiba', {
+      method: 'POST',
+      body: JSON.stringify({
+        insurerName: $('#wiba-insurer').value.trim(),
+        policyNumber: $('#wiba-policy-number').value.trim(),
+        coverageStart: $('#wiba-start').value,
+        coverageEnd: $('#wiba-end').value,
+        premiumAmount: $('#wiba-premium').value ? Number($('#wiba-premium').value) : null,
+      }),
+    });
+    ['wiba-insurer', 'wiba-policy-number', 'wiba-start', 'wiba-end', 'wiba-premium'].forEach((id) => { $(`#${id}`).value = ''; });
+    loadWibaPolicies();
+  } catch (err) {
+    $('#wiba-error').textContent = err.message;
+  }
+});
+
+async function loadWibaPolicies() {
+  const policies = await api('/wiba');
+  const tbody = $('#wiba-tbody');
+  const today = new Date().toISOString().slice(0, 10);
+  tbody.innerHTML = policies.length ? '' : '<tr><td colspan="4" class="muted">No WIBA policy recorded yet.</td></tr>';
+  policies.forEach((p) => {
+    const active = p.coverage_start.slice(0, 10) <= today && today <= p.coverage_end.slice(0, 10);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${p.insurer_name}</td>
+      <td>${p.policy_number}</td>
+      <td>${p.coverage_start.slice(0, 10)} → ${p.coverage_end.slice(0, 10)}</td>
+      <td><span class="status-pill status-${active ? 'active' : 'terminated'}">${active ? 'active' : 'expired'}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
 
 /* ---------------- Performance ---------------- */
 
@@ -620,6 +725,8 @@ async function loadHistory() {
   });
 }
 
+const REMITTANCE_LABELS = { paye: 'PAYE (KRA)', nssf: 'NSSF', sha: 'SHA (SHIF)', housing_levy: 'Housing Levy' };
+
 async function loadRunDetail(runId) {
   const { payrollRun, payslips } = await api(`/payroll/runs/${runId}`);
   const detail = $('#run-detail');
@@ -631,6 +738,7 @@ async function loadRunDetail(runId) {
       ${payrollRun.status === 'processed' ? `<button class="btn btn-primary" id="mark-paid-btn">Mark as paid</button>` : ''}
       <button class="btn btn-ghost" id="export-mpesa-btn">Download M-Pesa payment CSV</button>
       <button class="btn btn-ghost" id="export-bank-btn">Download bank payment CSV</button>
+      <button class="btn btn-ghost" id="export-p10-btn">Download P10 monthly return</button>
     </div>
     <p class="form-error" id="export-warning"></p>
     <table class="ledger-table">
@@ -638,13 +746,17 @@ async function loadRunDetail(runId) {
       <tbody>
         ${payslips.map((p) => `
           <tr data-payslip='${JSON.stringify(p).replace(/'/g, '&#39;')}'>
-            <td>${p.first_name} ${p.last_name}</td>
+            <td>${p.first_name} ${p.last_name}${p.deduction_cap_breached ? ' <span class="status-pill status-terminated">deduction cap</span>' : ''}</td>
             <td class="num">${fmtMoney(p.gross_pay)}</td>
             <td class="num">${fmtMoney(p.paye)}</td>
             <td class="num">${fmtMoney(p.net_pay)}</td>
           </tr>`).join('')}
       </tbody>
     </table>
+
+    <h3 class="subhead">Statutory remittances</h3>
+    <p class="muted">What's owed for this run, and whether it's actually been paid to KRA/NSSF/SHA yet.</p>
+    <div id="remittances-list"></div>
   `;
   detail.querySelectorAll('tr[data-payslip]').forEach((row) => {
     row.addEventListener('click', () => openPayslip(JSON.parse(row.dataset.payslip)));
@@ -682,6 +794,56 @@ async function loadRunDetail(runId) {
     } catch (err) {
       reportError(err);
     }
+  });
+  $('#export-p10-btn').addEventListener('click', async () => {
+    try {
+      await downloadFile(`/payroll/runs/${runId}/p10`, 'p10.pdf');
+    } catch (err) {
+      reportError(err);
+    }
+  });
+
+  loadRemittances(runId);
+}
+
+async function loadRemittances(runId) {
+  const remittances = await api(`/payroll/runs/${runId}/remittances`);
+  const container = $('#remittances-list');
+  container.innerHTML = remittances.map((r) => `
+    <div class="review-card" data-type="${r.type}">
+      <div class="review-head">
+        <strong>${REMITTANCE_LABELS[r.type] || r.type}</strong>
+        <span class="status-pill status-${r.paid ? 'active' : 'draft'}" style="margin-left:auto;">${r.paid ? 'paid' : 'pending'}</span>
+      </div>
+      <div>Amount due: ${fmtMoney(r.amount_due)}</div>
+      ${r.paid
+        ? `<div class="muted">Paid ${r.paid_date ? r.paid_date.slice(0, 10) : ''}${r.reference_number ? ' · Ref: ' + r.reference_number : ''}</div>`
+        : `
+          <div class="inline-form" style="margin-top:10px;">
+            <label>Reference no. <input type="text" class="remit-ref" /></label>
+            <label>Paid date <input type="date" class="remit-date" /></label>
+            <button type="button" class="btn btn-ghost remit-pay-btn">Mark as paid</button>
+          </div>
+        `}
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.remit-pay-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const card = btn.closest('.review-card');
+      const type = card.dataset.type;
+      const referenceNumber = card.querySelector('.remit-ref').value.trim();
+      const paidDate = card.querySelector('.remit-date').value;
+      try {
+        await api(`/payroll/runs/${runId}/remittances/${type}/pay`, {
+          method: 'POST',
+          body: JSON.stringify({ referenceNumber, paidDate }),
+        });
+        loadRemittances(runId);
+      } catch (err) {
+        reportError(err);
+      }
+    });
   });
 }
 

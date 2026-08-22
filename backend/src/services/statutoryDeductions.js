@@ -87,6 +87,29 @@ function calculateHousingLevy(grossPay, housingConfig) {
 }
 
 /**
+ * Overtime pay under the Employment Act — 1.5x normal hourly rate on
+ * weekdays, 2x on rest days/public holidays. Hourly rate is derived from
+ * monthly basic salary using a configurable standard-hours divisor (see
+ * defaultRates.js — this divisor isn't fixed by statute, so verify it
+ * against your own contracts).
+ */
+function calculateOvertime(basicSalary, hours, overtimeConfig = {}) {
+  const { weekday = 0, restDayHoliday = 0 } = hours || {};
+  const standardHours = overtimeConfig.standardMonthlyHours || 195;
+  const hourlyRate = standardHours > 0 ? basicSalary / standardHours : 0;
+  const weekdayPay = round2(weekday * hourlyRate * (overtimeConfig.weekdayMultiplier ?? 1.5));
+  const restDayHolidayPay = round2(restDayHoliday * hourlyRate * (overtimeConfig.restDayHolidayMultiplier ?? 2.0));
+  return {
+    weekdayHours: Number(weekday),
+    restDayHolidayHours: Number(restDayHoliday),
+    hourlyRate: round2(hourlyRate),
+    weekdayPay,
+    restDayHolidayPay,
+    totalPay: round2(weekdayPay + restDayHolidayPay),
+  };
+}
+
+/**
  * Runs a full payslip calculation for one employee for one pay period.
  *
  * @param {Object} input
@@ -102,6 +125,7 @@ function calculatePayslip(input, config) {
     allowances = [],
     otherDeductions = [],
     pensionContribution = 0,
+    overtimeHours = null, // { weekday, restDayHoliday } in hours, or null/omitted for none
   } = input;
 
   const taxableAllowances = allowances
@@ -111,21 +135,33 @@ function calculatePayslip(input, config) {
     .filter((a) => a.taxable === false)
     .reduce((sum, a) => sum + Number(a.amount || 0), 0);
 
-  const grossPay = round2(basicSalary + taxableAllowances + nonTaxableAllowances);
-  // Statutory deductions are computed on gross cash pay.
-  const statutoryBase = round2(basicSalary + taxableAllowances + nonTaxableAllowances);
+  const overtime = overtimeHours && (Number(overtimeHours.weekday) > 0 || Number(overtimeHours.restDayHoliday) > 0)
+    ? calculateOvertime(basicSalary, overtimeHours, config.overtime || {})
+    : null;
+  const overtimePay = overtime ? overtime.totalPay : 0;
 
-  const nssf = calculateNSSF(statutoryBase, config.nssf);
-  const sha = calculateSHA(statutoryBase, config.sha);
-  const housingLevy = calculateHousingLevy(statutoryBase, config.housingLevy);
+  const grossPay = round2(basicSalary + taxableAllowances + nonTaxableAllowances + overtimePay);
+
+  // NSSF is calculated on regular pensionable pay, which commonly excludes
+  // overtime (it's irregular, not a fixed pensionable earning) — verify
+  // against your own scheme rules, this isn't fixed by a single statute.
+  const nssfBase = round2(basicSalary + taxableAllowances + nonTaxableAllowances);
+  // SHA and the Housing Levy are calculated on gross cash pay, which does
+  // include overtime.
+  const shaHousingBase = grossPay;
+
+  const nssf = calculateNSSF(nssfBase, config.nssf);
+  const sha = calculateSHA(shaHousingBase, config.sha);
+  const housingLevy = calculateHousingLevy(shaHousingBase, config.housingLevy);
 
   const cappedPension = Math.min(
     Number(pensionContribution || 0),
     config.paye.pensionReliefCap ?? Infinity
   );
 
-  // Taxable income = gross taxable pay minus pre-tax statutory deductions and pension.
-  const taxableGross = basicSalary + taxableAllowances;
+  // Taxable income = gross taxable pay (including overtime, which is
+  // ordinary taxable employment income) minus pre-tax statutory deductions and pension.
+  const taxableGross = basicSalary + taxableAllowances + overtimePay;
   const taxableIncome = round2(
     Math.max(0, taxableGross - nssf.employeeTotal - sha - housingLevy.employee - cappedPension)
   );
@@ -147,10 +183,20 @@ function calculatePayslip(input, config) {
 
   const netPay = round2(grossPay - totalDeductions);
 
+  // Employment Act §19: total deductions can't exceed a set fraction
+  // (commonly two-thirds) of gross pay. This flags a breach — it doesn't
+  // block the payslip, since a real breach still needs to be visible to fix.
+  let deductionCap = null;
+  if (config.deductionCap && config.deductionCap.maxFractionOfGross != null) {
+    const limit = round2(grossPay * config.deductionCap.maxFractionOfGross);
+    deductionCap = { limit, breached: totalDeductions > limit };
+  }
+
   return {
     basicSalary: round2(basicSalary),
     taxableAllowances: round2(taxableAllowances),
     nonTaxableAllowances: round2(nonTaxableAllowances),
+    overtime,
     grossPay,
     nssf,
     sha,
@@ -165,6 +211,7 @@ function calculatePayslip(input, config) {
     otherDeductionsTotal,
     totalDeductions,
     netPay,
+    deductionCap,
   };
 }
 
@@ -173,6 +220,7 @@ module.exports = {
   calculateNSSF,
   calculateSHA,
   calculateHousingLevy,
+  calculateOvertime,
   calculatePayslip,
   round2,
 };

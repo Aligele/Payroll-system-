@@ -20,6 +20,10 @@ async function migrate() {
     const usersSchemaSql = fs.readFileSync(path.join(__dirname, 'users_schema.sql'), 'utf8');
     await client.query(usersSchemaSql);
 
+    console.log('Applying compliance schema (overtime, remittances, WIBA)...');
+    const complianceSchemaSql = fs.readFileSync(path.join(__dirname, 'compliance_schema.sql'), 'utf8');
+    await client.query(complianceSchemaSql);
+
     console.log('Checking for an active statutory rate set...');
     const { rows: existingRates } = await client.query(
       'SELECT id FROM statutory_rate_sets WHERE is_active = true LIMIT 1'

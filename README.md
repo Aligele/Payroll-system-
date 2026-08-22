@@ -226,6 +226,40 @@ by HR/admin staff — there's no separate employee login):
 - **Performance reviews** — review period, reviewer, 1–5 rating, strengths,
   areas for improvement, goals, and comments, with history per employee.
 
+## Overtime, remittances, P10, Certificate of Service, WIBA
+
+Six Employment Act / statutory features, all admin+staff except where noted:
+
+- **Overtime pay** (Attendance tab) — log hours per employee/date at
+  weekday (1.5×) or rest-day/public-holiday (2×) rates. Unapplied entries
+  are picked up automatically the next time payroll runs for that
+  employee's period and folded into gross pay; NSSF is calculated
+  excluding overtime (regular pensionable pay only), while SHA, the
+  Housing Levy, and PAYE include it. The hourly rate is derived from
+  monthly salary using a configurable "standard monthly hours" divisor
+  (default 195) — this isn't fixed by statute, so check it against your
+  own contracts in the rate config if it doesn't match.
+- **Deduction cap check** — any payslip where total deductions exceed
+  ⅔ of gross pay (Employment Act §19) is flagged with a "deduction cap"
+  badge in Payroll History. It doesn't block the run — a real breach
+  still needs to be visible so you can fix it.
+- **Remittance tracking** (Payroll History → a run) — separate from the
+  payslip amounts, records whether PAYE/NSSF/SHA/Housing Levy were
+  actually paid, with a reference number and date once marked paid.
+- **P10 monthly PAYE return** — "Download P10 monthly return" in Payroll
+  History, alongside the payment exports. Set `EMPLOYER_KRA_PIN` as an
+  environment variable to have it appear on the form.
+- **Certificate of Service** — "Download Certificate of Service" button
+  in any employee's detail view. Deliberately has no salary figures on
+  it, so it's available to `hr_staff` too.
+- **WIBA cover tracking** (Compliance tab) — mandatory employer injury
+  insurance, tracked at the company level: insurer, policy number,
+  coverage dates, premium. Open to all roles, like leave/attendance.
+
+All of the above are computed summaries for your own records, not
+official government-issued or verified documents — reconcile against
+what you actually file with KRA/NSSF/SHA before relying on them.
+
 ## Paying salaries: M-Pesa and bank export
 
 Once a payroll run is processed, open it under **Payroll history** for two
