@@ -134,6 +134,15 @@ Employee `allowances` and `otherDeductions` are JSON arrays, e.g.:
 }
 ```
 
+## Mobile navigation
+
+On narrow screens, the sidebar becomes a slide-out drawer instead of a
+horizontal scrolling bar: a hamburger button in a slim top bar opens it,
+each nav item has an icon, items are grouped under section labels (HR,
+PAYROLL, ADMIN — the last two hidden per role, same restrictions as
+everywhere else), and it closes automatically after picking a section or
+tapping outside it.
+
 ## Phone-specific polish
 
 Beyond just "not broken on mobile," a few real phone-usability fixes:

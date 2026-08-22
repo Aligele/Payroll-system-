@@ -251,6 +251,7 @@ input:focus, select:focus {
 
 /* ---------- App shell ---------- */
 .app-shell { display: flex; min-height: 100vh; }
+.mobile-topbar { display: none; } /* shown only within the mobile breakpoint */
 
 .sidebar {
   width: 216px;
@@ -289,7 +290,18 @@ input:focus, select:focus {
   align-items: center;
 }
 .sidebar nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.nav-section-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #8A8F79;
+  padding: 16px 12px 6px;
+}
+.nav-section-label:first-child { padding-top: 4px; }
 .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
   text-align: left;
   background: none;
   border: none;
@@ -301,6 +313,7 @@ input:focus, select:focus {
   font-weight: 500;
   transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease), padding-left 0.15s var(--ease);
 }
+.nav-icon { width: 18px; height: 18px; flex-shrink: 0; color: inherit; opacity: 0.85; }
 @media (hover: hover) and (pointer: fine) { .nav-link:hover { background: rgba(255,255,255,0.05); color: #fff; padding-left: 14px; } }
 .nav-link:active { background: rgba(255,255,255,0.09); } /* immediate tap feedback for touch, since :hover doesn't apply there */
 .nav-link.active { background: rgba(233,201,143,0.14); color: #E9C98F; border-left-color: var(--brass); }
@@ -531,42 +544,55 @@ textarea:focus {
   .btn-danger-ghost { padding: 10px 14px; min-height: 40px; }
   .link-btn { padding: 6px 2px; display: inline-block; }
 
-  .sidebar {
-    width: 100%;
-    flex-direction: row;
-    align-items: center;
-    padding: 0 12px;
-    gap: 4px;
-  }
-  .sidebar::before { display: none; } /* the vertical ribbon doesn't translate to a horizontal bar cleanly */
-
-  .brand { margin: 14px 14px 14px 0; white-space: nowrap; }
-
-  .sidebar nav {
-    flex-direction: row;
-    flex: 1;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    gap: 2px;
-  }
-  .nav-link {
-    white-space: nowrap;
-    border-left: none;
-    border-bottom: 3px solid transparent;
-    border-radius: var(--radius) var(--radius) 0 0;
-    padding: 12px 12px;
-  }
-  .nav-link.active { border-left-color: transparent; border-bottom-color: var(--brass); }
-
-  .sidebar-footer {
-    border-top: none;
-    padding: 0 0 0 8px;
-    flex-direction: row;
+  /* Slim top bar with a hamburger toggle — the actual nav lives in an
+     off-canvas drawer instead of competing for width with page content. */
+  .mobile-topbar {
+    display: flex;
     align-items: center;
     gap: 10px;
-    white-space: nowrap;
+    padding: 10px 14px;
+    background: #182420;
+    position: sticky;
+    top: 0;
+    z-index: 40;
   }
-  .user-name { display: none; } /* saves space on a phone-width top bar; name still shows once you open a panel */
+  .mobile-topbar-brand {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 16px;
+    color: #E9C98F;
+    display: flex;
+    align-items: center;
+  }
+  .hamburger-btn {
+    background: none;
+    border: none;
+    color: #E9E5DA;
+    padding: 8px;
+    margin: -8px 0;
+    border-radius: var(--radius);
+  }
+  .hamburger-btn:active { background: rgba(255,255,255,0.1); }
+
+  .drawer-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(20,18,15,0.5);
+    z-index: 55;
+    animation: backdropIn 0.2s var(--ease);
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0; bottom: 0; left: 0;
+    width: 260px;
+    max-width: 82vw;
+    z-index: 60;
+    transform: translateX(-100%);
+    transition: transform 0.25s var(--ease);
+    box-shadow: 4px 0 24px rgba(20,18,15,0.3);
+  }
+  .sidebar.drawer-open { transform: translateX(0); }
+  .sidebar .brand { display: flex; } /* the sidebar's own brand row shows inside the open drawer */
 
   .content { padding: 14px; max-width: 100%; }
   .panel { padding: 18px 16px 26px; }

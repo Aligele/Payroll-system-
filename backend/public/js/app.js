@@ -98,7 +98,10 @@ function showApp() {
   $('#view-login').classList.add('hidden');
   $('#view-app').classList.remove('hidden');
   $('#user-name').textContent = state.user ? state.user.name : '';
-  if (!state.user || state.user.role !== 'admin') $('#nav-users').classList.add('hidden');
+  if (!state.user || state.user.role !== 'admin') {
+    $('#nav-users').classList.add('hidden');
+    $('#nav-admin-label').classList.add('hidden');
+  }
   if (state.user && state.user.role === 'hr_staff') {
     // hr_staff has no payroll/salary access — hide those nav items and form fields
     // (the backend enforces this independently; this just keeps the UI honest).
@@ -106,6 +109,7 @@ function showApp() {
       const link = document.querySelector(`.nav-link[data-view="${view}"]`);
       if (link) link.classList.add('hidden');
     });
+    $('#nav-payroll-label').classList.add('hidden');
     document.querySelectorAll('.payroll-field').forEach((el) => el.classList.add('hidden'));
     const salaryHeader = document.querySelector('#panel-employees thead th.num');
     if (salaryHeader) salaryHeader.classList.add('hidden');
@@ -156,6 +160,17 @@ $('#logout-btn').addEventListener('click', () => {
 
 /* ---------------- Navigation ---------------- */
 
+function openDrawer() {
+  $('#sidebar').classList.add('drawer-open');
+  $('#drawer-backdrop').classList.remove('hidden');
+}
+function closeDrawer() {
+  $('#sidebar').classList.remove('drawer-open');
+  $('#drawer-backdrop').classList.add('hidden');
+}
+$('#drawer-toggle').addEventListener('click', openDrawer);
+$('#drawer-backdrop').addEventListener('click', closeDrawer);
+
 $$('.nav-link').forEach((btn) => {
   btn.addEventListener('click', () => {
     $$('.nav-link').forEach((b) => b.classList.remove('active'));
@@ -168,6 +183,7 @@ $$('.nav-link').forEach((btn) => {
     if (btn.dataset.view === 'attendance') initAttendanceTab();
     if (btn.dataset.view === 'performance') initPerformanceTab();
     if (btn.dataset.view === 'users') loadUsers();
+    closeDrawer(); // no-op on desktop, closes the off-canvas menu on mobile
   });
 });
 
