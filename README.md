@@ -136,18 +136,15 @@ Employee `allowances` and `otherDeductions` are JSON arrays, e.g.:
 
 ## Sessions and the 8-hour timeout
 
-The app automatically refreshes your session every 15 minutes while you're
-actively using it (open tab, app in the foreground) — so in practice you
-should never hit a mid-task expiry anymore, regardless of `JWT_EXPIRES_IN`.
-A real expiry only happens after genuine inactivity longer than that window
-(tab closed, laptop asleep, etc.), at which point you'll see a clean
-"session expired" message and get returned to the login screen — any
-in-progress Add Employee draft is preserved and restored automatically.
-
-If you still want a longer base window regardless (e.g. so a closed-tab
-absence over a lunch break doesn't log you out), update `JWT_EXPIRES_IN` in
-Vercel's Environment Variables and redeploy — but the auto-refresh above
-should make that unnecessary for normal use.
+The app renews your session automatically during real use — but not via a
+background timer (mobile browsers throttle or fully suspend JS timers once
+a tab isn't in the foreground, e.g. screen locked, which made an earlier
+version of this unreliable on phones). Instead it piggybacks a refresh on
+every real API call, and again whenever the tab becomes visible after being
+backgrounded — both of which fire reliably regardless of what the OS did to
+timers while you were away. In practice, a session should now only actually
+expire after genuine inactivity longer than the timeout window (phone
+locked/app closed for hours), not mid-task.
 
 ## Deleting or terminating an employee
 

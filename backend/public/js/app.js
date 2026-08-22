@@ -14,6 +14,10 @@ function fmtMoney(n) {
 }
 
 async function api(path, options = {}) {
+  // Fire-and-forget: piggyback a refresh on real activity without slowing
+  // this request down or blocking on it.
+  if (path !== '/auth/refresh' && path !== '/auth/login') maybeRefreshSession();
+
   const res = await fetch(API + path, {
     ...options,
     headers: {
@@ -54,32 +58,40 @@ function handleSessionExpired() {
 
 /* ---------------- Auth ---------------- */
 
-let sessionRefreshTimer = null;
+// A background setInterval is unreliable on mobile — browsers throttle or
+// fully suspend JS timers once the tab isn't in the foreground (screen
+// locked, app switched away), which is most of how this gets used on a
+// phone. So instead of relying on a timer surviving that, the session
+// renews opportunistically: on every real API call (guaranteed to happen
+// during actual use), and whenever the tab becomes visible again after
+// being backgrounded — both of which fire reliably regardless of what the
+// OS did to background timers in between.
+let lastSessionRefreshAt = 0;
+const SESSION_REFRESH_MIN_GAP_MS = 5 * 60 * 1000; // don't refresh more than once per 5 min
 
-// Keeps the session alive during active use: a fixed JWT_EXPIRES_IN window
-// would otherwise expire mid-task regardless of how actively someone's
-// working. Runs on an interval well inside that window, so as long as the
-// tab stays open the token keeps renewing — a real expiry only happens
-// after genuine inactivity (tab closed, laptop asleep) longer than that window.
-function startSessionRefresh() {
-  stopSessionRefresh();
-  sessionRefreshTimer = setInterval(async () => {
-    try {
-      const data = await api('/auth/refresh', { method: 'POST' });
-      state.token = data.token;
-      state.user = data.user;
-      localStorage.setItem('payroll_token', data.token);
-      localStorage.setItem('payroll_user', JSON.stringify(data.user));
-    } catch (err) {
-      // A failed refresh (expired/deactivated) already triggers the normal
-      // session-expired redirect inside api() — nothing more to do here.
-    }
-  }, 15 * 60 * 1000); // every 15 minutes
+async function maybeRefreshSession() {
+  if (!state.token) return;
+  if (Date.now() - lastSessionRefreshAt < SESSION_REFRESH_MIN_GAP_MS) return;
+  lastSessionRefreshAt = Date.now();
+  try {
+    const res = await fetch(API + '/auth/refresh', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${state.token}` },
+    });
+    if (!res.ok) return; // a real expiry is handled by api()'s own 401 check on the next actual request
+    const data = await res.json();
+    state.token = data.token;
+    state.user = data.user;
+    localStorage.setItem('payroll_token', data.token);
+    localStorage.setItem('payroll_user', JSON.stringify(data.user));
+  } catch (err) {
+    // network hiccup — harmless, it'll just try again on the next activity
+  }
 }
-function stopSessionRefresh() {
-  if (sessionRefreshTimer) clearInterval(sessionRefreshTimer);
-  sessionRefreshTimer = null;
-}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') maybeRefreshSession();
+});
 
 function showApp() {
   $('#view-login').classList.add('hidden');
@@ -97,14 +109,13 @@ function showApp() {
     const salaryHeader = document.querySelector('#panel-employees thead th.num');
     if (salaryHeader) salaryHeader.classList.add('hidden');
   }
-  startSessionRefresh();
+  maybeRefreshSession();
   loadEmployees();
 }
 
 function showLogin() {
   $('#view-app').classList.add('hidden');
   $('#view-login').classList.remove('hidden');
-  stopSessionRefresh();
 }
 
 $('#login-form').addEventListener('submit', async (e) => {
