@@ -13,27 +13,30 @@
 <!-- LOGIN VIEW -->
 <div id="view-login" class="auth-screen">
   <div class="auth-card">
-    <div class="auth-mark">⌘ Ledger</div>
-    <h1>Sign in to payroll</h1>
-    <p class="muted">PAYE · SHA · NSSF · Housing Levy — computed automatically.</p>
-    <form id="login-form">
-      <label>Email
-        <input type="email" id="login-email" required autocomplete="username" />
-      </label>
-      <label>Password
-        <input type="password" id="login-password" required autocomplete="current-password" />
-      </label>
-      <button type="submit" class="btn btn-primary btn-block">Sign in</button>
-      <p class="form-error" id="login-error"></p>
-    </form>
-    <p class="auth-hint">Seed credentials are printed to the server console the first time you run <code>npm run migrate</code>.</p>
+    <div class="ribbon-accent"></div>
+    <div class="auth-card-body">
+      <div class="auth-mark"><span class="flag-badge" aria-hidden="true"></span> Ledger</div>
+      <h1>Sign in to payroll</h1>
+      <p class="muted">PAYE · SHA · NSSF · Housing Levy — computed automatically.</p>
+      <form id="login-form">
+        <label>Email
+          <input type="email" id="login-email" required autocomplete="username" />
+        </label>
+        <label>Password
+          <input type="password" id="login-password" required autocomplete="current-password" />
+        </label>
+        <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+        <p class="form-error" id="login-error"></p>
+      </form>
+      <p class="auth-hint">Seed credentials are printed to the server console the first time you run <code>npm run migrate</code>.</p>
+    </div>
   </div>
 </div>
 
 <!-- APP SHELL -->
 <div id="view-app" class="app-shell hidden">
   <aside class="sidebar">
-    <div class="brand">⌘ Ledger</div>
+    <div class="brand"><span class="flag-badge" aria-hidden="true"></span> Ledger</div>
     <nav>
       <button class="nav-link active" data-view="employees">Employees</button>
       <button class="nav-link" data-view="leave">Leave</button>
@@ -264,7 +267,11 @@
       <button type="button" class="btn btn-ghost" id="ed-doc-add">Add</button>
     </div>
 
-    <div class="modal-actions">
+    <div class="modal-actions modal-actions-split">
+      <div class="danger-actions">
+        <button type="button" class="btn btn-danger-ghost" id="ed-terminate">Terminate employment</button>
+        <button type="button" class="btn btn-danger-ghost" id="ed-delete">Delete (wrong entry)</button>
+      </div>
       <button type="button" class="btn btn-ghost" id="employee-detail-close">Close</button>
     </div>
   </div>

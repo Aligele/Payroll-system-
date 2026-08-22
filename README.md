@@ -134,6 +134,23 @@ Employee `allowances` and `otherDeductions` are JSON arrays, e.g.:
 }
 ```
 
+## Deleting or terminating an employee
+
+Two different actions, on purpose:
+
+- **Terminate employment** — soft action, marks the employee inactive.
+  Their payslips, leave history, attendance, and performance reviews all
+  stay intact and they're just excluded from future payroll runs. Use this
+  for someone who actually left.
+- **Delete (wrong entry)** — hard delete, for correcting a mistaken entry.
+  **Blocked if the employee has any payroll history** (a real payslip can
+  never be silently erased), so this only works for a freshly-added record
+  with no payroll runs against it yet. Their leave/attendance/performance/
+  document records are removed along with them.
+
+Both are available from an employee's detail view (click any row on the
+Employees page).
+
 ## User roles and admin management
 
 There are three roles:

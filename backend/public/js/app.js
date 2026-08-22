@@ -202,6 +202,28 @@ $('#ed-doc-add').addEventListener('click', async () => {
 
 $('#employee-detail-close').addEventListener('click', () => $('#employee-detail-modal').classList.add('hidden'));
 
+$('#ed-terminate').addEventListener('click', async () => {
+  if (!confirm('Mark this employee as terminated? Their records stay intact, but they\'ll be excluded from future payroll runs.')) return;
+  try {
+    await api(`/employees/${currentDetailEmployeeId}`, { method: 'DELETE' });
+    $('#employee-detail-modal').classList.add('hidden');
+    loadEmployees();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+$('#ed-delete').addEventListener('click', async () => {
+  if (!confirm('Permanently delete this employee record? This only works if they have no payroll history, and cannot be undone.')) return;
+  try {
+    await api(`/employees/${currentDetailEmployeeId}/permanent`, { method: 'DELETE' });
+    $('#employee-detail-modal').classList.add('hidden');
+    loadEmployees();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
 /* ---------------- Shared: populate an employee <select> ---------------- */
 
 async function populateEmployeeSelect(selectEl, { includeAllOption = false } = {}) {

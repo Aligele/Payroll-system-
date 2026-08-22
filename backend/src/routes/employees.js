@@ -124,4 +124,28 @@ router.delete('/:id', async (req, res) => {
   res.status(204).send();
 });
 
+// Permanently removes an employee record — only for correcting a mistaken
+// entry, not for offboarding a real employee (use the terminate action
+// above for that). Blocked if the employee has any payroll history, so a
+// real payslip can never be silently erased; leave/attendance/performance/
+// document records cascade-delete along with the employee.
+router.delete('/:id/permanent', async (req, res) => {
+  try {
+    const { rows: payslips } = await pool.query(
+      'SELECT id FROM payslips WHERE employee_id = $1 LIMIT 1', [req.params.id]
+    );
+    if (payslips.length > 0) {
+      return res.status(409).json({
+        error: 'This employee has payroll history and cannot be permanently deleted. Use "Terminate" instead to mark them inactive.',
+      });
+    }
+    const { rowCount } = await pool.query('DELETE FROM employees WHERE id = $1', [req.params.id]);
+    if (rowCount === 0) return res.status(404).json({ error: 'Employee not found' });
+    res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete employee' });
+  }
+});
+
 module.exports = router;
