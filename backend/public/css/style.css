@@ -185,6 +185,28 @@ a, .link-btn {
 }
 .landing-sub { color: var(--ink-soft); font-size: 14.5px; line-height: 1.6; margin: 0 0 30px; }
 
+/* Mission / Vision / Target — a quieter, text-forward block sitting above
+   the feature cards, like a masthead statement rather than another set
+   of cards, so it doesn't visually compete with the feature grid. */
+.manifesto {
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 22px 0;
+  margin-bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.manifesto-label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--brass-dark);
+  letter-spacing: 0.03em;
+  margin-bottom: 5px;
+}
+.manifesto-block p { margin: 0; font-size: 13.5px; line-height: 1.65; color: var(--ink); }
+
 .feature-grid { display: flex; flex-direction: column; gap: 14px; margin-bottom: 30px; }
 .feature-card {
   border: 1px solid var(--rule);
