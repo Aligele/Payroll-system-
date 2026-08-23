@@ -226,6 +226,32 @@ by HR/admin staff — there's no separate employee login):
 - **Performance reviews** — review period, reviewer, 1–5 rating, strengths,
   areas for improvement, goals, and comments, with history per employee.
 
+## KRA iTax: what's actually connectable, and what isn't
+
+There is currently **no public API** for a private company's payroll
+system to submit PAYE returns directly to iTax — the API integration KRA
+has announced is specifically for connecting iTax to government systems
+(GHRIS, IFMIS, the Central Bank), not for arbitrary third-party payroll
+software. (eTIMS, KRA's VAT/invoicing system, is different — it does
+have a genuine public API with a sandbox — but that's a separate tax
+type from PAYE.)
+
+What **is** real: since July 2025, all employers file PAYE using KRA's
+**Simplified PAYE Return**, an offline Excel workbook that supports CSV
+import for employee data. **"Download KRA PAYE return CSV"** in Payroll
+History generates a CSV matching that exact Sheet B field structure
+(source: KRA's official filing guide), ready to import into KRA's own
+template rather than manually retyping every employee's figures.
+
+Several Sheet B fields aren't tracked by this system and export as
+0 — flagged directly under the download button every time: Value of Car
+Benefit, Value of Meals, Value of Non-Cash Benefits, Value of Housing,
+Other Benefits, PRMF, Mortgage Interest, and Insurance Relief. Resident
+Status is assumed "Resident" and PWD is assumed "No" for every employee.
+Add these manually in KRA's Excel template where they apply before
+uploading to iTax. Employees missing a KRA PIN are skipped entirely,
+since KRA can't accept a return without one.
+
 ## P9 form layout
 
 The P9 now matches the density and column structure of KRA's official

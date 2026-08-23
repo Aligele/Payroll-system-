@@ -7,6 +7,7 @@ const {
 const { calculatePayslip } = require('../services/statutoryDeductions');
 const { renderPayslipPdf, renderP9Pdf, renderP10Pdf } = require('../services/pdfGenerator');
 const { generateMpesaCsv, generateBankCsv } = require('../services/paymentExport');
+const { generateKraPayeCsv } = require('../services/kraPayeExport');
 const pool = require('../config/db');
 
 const router = express.Router();
@@ -167,6 +168,29 @@ router.get('/runs/:id/export/bank', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to generate bank payment file' });
+  }
+});
+
+// CSV matching KRA's Simplified PAYE Return "Sheet B" field structure, for
+// import into KRA's own Excel workbook — see kraPayeExport.js for exactly
+// what this does and doesn't cover.
+router.get('/runs/:id/export/kra-paye', async (req, res) => {
+  try {
+    const result = await getPayrollRun(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Payroll run not found' });
+
+    const { csv, skipped, untrackedNote } = generateKraPayeCsv(result.payslips);
+    if (skipped.length > 0) {
+      res.setHeader('X-Skipped-Employees', encodeURIComponent(JSON.stringify(skipped)));
+    }
+    res.setHeader('X-Untracked-Fields-Note', encodeURIComponent(untrackedNote));
+    const filename = `kra-paye-return-run-${req.params.id}.csv`;
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csv);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to generate KRA PAYE return CSV' });
   }
 });
 

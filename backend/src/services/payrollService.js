@@ -175,7 +175,7 @@ async function getPayrollRun(payrollRunId) {
   if (runRows.length === 0) return null;
 
   const { rows: payslips } = await pool.query(
-    `SELECT p.*, e.employee_no, e.first_name, e.last_name, e.bank_name, e.bank_account, e.phone
+    `SELECT p.*, e.employee_no, e.first_name, e.last_name, e.bank_name, e.bank_account, e.phone, e.kra_pin
      FROM payslips p JOIN employees e ON e.id = p.employee_id
      WHERE p.payroll_run_id = $1 ORDER BY e.first_name`,
     [payrollRunId]

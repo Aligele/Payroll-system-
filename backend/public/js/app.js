@@ -739,6 +739,7 @@ async function loadRunDetail(runId) {
       <button class="btn btn-ghost" id="export-mpesa-btn">Download M-Pesa payment CSV</button>
       <button class="btn btn-ghost" id="export-bank-btn">Download bank payment CSV</button>
       <button class="btn btn-ghost" id="export-p10-btn">Download P10 monthly return</button>
+      <button class="btn btn-ghost" id="export-kra-csv-btn">Download KRA PAYE return CSV</button>
     </div>
     <p class="form-error" id="export-warning"></p>
     <table class="ledger-table">
@@ -798,6 +799,16 @@ async function loadRunDetail(runId) {
   $('#export-p10-btn').addEventListener('click', async () => {
     try {
       await downloadFile(`/payroll/runs/${runId}/p10`, 'p10.pdf');
+    } catch (err) {
+      reportError(err);
+    }
+  });
+  $('#export-kra-csv-btn').addEventListener('click', async () => {
+    $('#export-warning').textContent = '';
+    try {
+      const { skipped, untrackedNote } = await downloadFile(`/payroll/runs/${runId}/export/kra-paye`, 'kra-paye-return.csv');
+      const parts = [describeSkipped(skipped), untrackedNote].filter(Boolean);
+      $('#export-warning').textContent = parts.join(' ');
     } catch (err) {
       reportError(err);
     }
@@ -905,6 +916,8 @@ async function downloadFile(path, fallbackFilename) {
   const filename = match ? match[1] : fallbackFilename;
   const skippedHeader = res.headers.get('X-Skipped-Employees');
   const skipped = skippedHeader ? JSON.parse(decodeURIComponent(skippedHeader)) : [];
+  const untrackedNoteHeader = res.headers.get('X-Untracked-Fields-Note');
+  const untrackedNote = untrackedNoteHeader ? decodeURIComponent(untrackedNoteHeader) : '';
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -915,7 +928,7 @@ async function downloadFile(path, fallbackFilename) {
   a.remove();
   URL.revokeObjectURL(url);
 
-  return { filename, skipped };
+  return { filename, skipped, untrackedNote };
 }
 
 /* ---------------- P9 forms ---------------- */
