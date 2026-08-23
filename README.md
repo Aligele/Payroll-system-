@@ -226,6 +226,19 @@ by HR/admin staff — there's no separate employee login):
 - **Performance reviews** — review period, reviewer, 1–5 rating, strengths,
   areas for improvement, goals, and comments, with history per employee.
 
+## P9 form layout
+
+The P9 now matches the density and column structure of KRA's official
+P9A card (Gross Salary / Benefits Non-Cash / Value of Quarters / Total
+Gross Pay / NSSF / Pension / SHA / Housing Levy / Total Deductions /
+Chargeable Pay / Tax Charged / Personal Relief / PAYE), with our own
+G-Tech Africa Ltd shield branding rather than KRA's government logo —
+this is a company-generated document following the P9A format, not
+something issued by KRA, so it deliberately doesn't carry their emblem.
+Benefits Non-Cash and Value of Quarters aren't currently tracked by the
+system and show as 0.00; add them manually on the printed form if they
+apply to a given employee.
+
 ## Overtime, remittances, P10, Certificate of Service, WIBA
 
 Six Employment Act / statutory features, all admin+staff except where noted:

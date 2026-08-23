@@ -5,6 +5,7 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
   'August', 'September', 'October', 'November', 'December'];
 
 const fmt = (n) => Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 /**
  * Renders a single payslip as a PDF and returns it as a Buffer.
@@ -92,71 +93,90 @@ function renderPayslipPdf(payslip, { periodMonth, periodYear }) {
  */
 function renderP9Pdf(employee, monthlyPayslips, year) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 40, layout: 'landscape' });
+    const doc = new PDFDocument({ size: 'A4', margin: 30, layout: 'landscape' });
     const chunks = [];
     doc.on('data', (chunk) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    doc.font('Helvetica-Bold').fontSize(15).text(`${COMPANY_NAME}`);
-    doc.font('Helvetica-Bold').fontSize(12).fillColor('#555').text('TAX DEDUCTION CARD (P9) — YEAR ' + year);
-    doc.moveDown(0.5);
-    doc.font('Helvetica').fontSize(10).fillColor('#000');
-    doc.text(`Employee: ${employee.first_name} ${employee.last_name}    Employee No.: ${employee.employee_no}    KRA PIN: ${employee.kra_pin || 'N/A'}`);
-    doc.moveDown(0.8);
+    const pageWidth = doc.page.width;
 
-    const headers = ['Month', 'Basic Salary', 'Allowances', 'Gross Pay', 'NSSF', 'Taxable Pay', 'Tax Charged', 'Relief', 'PAYE Tax'];
-    const colWidths = [70, 85, 85, 85, 70, 85, 85, 70, 85];
-    const startX = 40;
-    let y = doc.y;
+    drawShieldLogo(doc, 30, 24, 34);
+    doc.font('Times-Bold').fontSize(14).fillColor(BRAND_COLORS.ink).text(COMPANY_NAME, 74, 26);
+    doc.font('Times-Roman').fontSize(9).fillColor(BRAND_COLORS.inkSoft)
+      .text('Tax Deduction Card — P9A format — Year ' + year, 74, 44);
+    doc.font('Helvetica').fontSize(7.5).fillColor('#999')
+      .text('Company-generated, following the KRA P9A layout — not an official KRA document.', pageWidth - 260, 26, { width: 230, align: 'right' });
+
+    doc.moveTo(30, 66).lineTo(pageWidth - 30, 66).lineWidth(1).strokeColor(BRAND_COLORS.brass).stroke();
+    doc.font('Helvetica').fontSize(9).fillColor('#000');
+    doc.text(`Employee: ${employee.first_name} ${employee.last_name}    Employee No.: ${employee.employee_no}    KRA PIN: ${employee.kra_pin || 'N/A'}`, 30, 74);
+
+    const headers = ['Month', 'A\nGross\nSalary', 'B\nBenefits\nNon-Cash', 'C\nValue of\nQuarters', 'D\nTotal Gross\nPay (A+B+C)', 'E1\nNSSF', 'E2\nPension', 'E3\nSHA', 'E4\nHousing\nLevy', 'G\nTotal\nDeductions', 'H\nChargeable\nPay (D-G)', 'Tax\nCharged', 'Personal\nRelief', 'PAYE\nTax'];
+    const colWidths = [52, 56, 52, 52, 62, 48, 48, 48, 52, 56, 62, 56, 52, 56];
+    const startX = 30;
+    let y = 96;
 
     const drawRow = (cells, opts = {}) => {
       let x = startX;
-      doc.font(opts.bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(9);
+      doc.font(opts.bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(opts.bold ? 7.5 : 7);
       cells.forEach((cell, i) => {
-        doc.text(String(cell), x, y, { width: colWidths[i], align: i === 0 ? 'left' : 'right' });
+        doc.text(String(cell), x + 2, y, { width: colWidths[i] - 4, align: i === 0 ? 'left' : 'right' });
         x += colWidths[i];
       });
-      y += 18;
+      y += opts.headerRow ? 34 : 14;
     };
 
-    drawRow(headers, { bold: true });
-    doc.moveTo(startX, y - 4).lineTo(startX + colWidths.reduce((a, b) => a + b, 0), y - 4).strokeColor('#999').stroke();
+    drawRow(headers, { bold: true, headerRow: true });
+    doc.moveTo(startX, y - 10).lineTo(startX + colWidths.reduce((a, b) => a + b, 0), y - 10).strokeColor('#999').stroke();
 
-    const totals = { basic: 0, allowances: 0, gross: 0, nssf: 0, taxable: 0, tax: 0, relief: 0, paye: 0 };
+    const totals = { gross: 0, totalGross: 0, nssf: 0, pension: 0, sha: 0, housing: 0, deductions: 0, chargeable: 0, tax: 0, relief: 0, paye: 0 };
     for (let m = 1; m <= 12; m++) {
       const p = monthlyPayslips.find((row) => row.period_month === m);
       if (p) {
-        const allowances = Number(p.taxable_allowances) + Number(p.non_taxable_allowances);
-        totals.basic += Number(p.basic_salary);
-        totals.allowances += allowances;
-        totals.gross += Number(p.gross_pay);
-        totals.nssf += Number(p.nssf_total);
-        totals.taxable += Number(p.taxable_income);
-        totals.tax += Number(p.paye_before_relief);
-        totals.relief += Number(p.personal_relief);
-        totals.paye += Number(p.paye);
+        const grossSalary = Number(p.basic_salary) + Number(p.taxable_allowances) + Number(p.overtime_pay || 0);
+        const totalGross = Number(p.gross_pay);
+        const nssf = Number(p.nssf_total);
+        const pension = Number(p.pension_contribution || 0);
+        const sha = Number(p.sha_contribution);
+        const housing = Number(p.housing_levy);
+        const totalDeductions = round2(nssf + pension + sha + housing);
+        const chargeable = Number(p.taxable_income);
+
+        totals.gross += grossSalary; totals.totalGross += totalGross; totals.nssf += nssf;
+        totals.pension += pension; totals.sha += sha; totals.housing += housing;
+        totals.deductions += totalDeductions; totals.chargeable += chargeable;
+        totals.tax += Number(p.paye_before_relief); totals.relief += Number(p.personal_relief); totals.paye += Number(p.paye);
+
         drawRow([
-          MONTHS[m - 1], fmt(p.basic_salary), fmt(allowances), fmt(p.gross_pay),
-          fmt(p.nssf_total), fmt(p.taxable_income), fmt(p.paye_before_relief),
-          fmt(p.personal_relief), fmt(p.paye),
+          MONTHS[m - 1], fmt(grossSalary), '0.00', '0.00', fmt(totalGross),
+          fmt(nssf), fmt(pension), fmt(sha), fmt(housing), fmt(totalDeductions),
+          fmt(chargeable), fmt(p.paye_before_relief), fmt(p.personal_relief), fmt(p.paye),
         ]);
       } else {
-        drawRow([MONTHS[m - 1], '—', '—', '—', '—', '—', '—', '—', '—']);
+        drawRow([MONTHS[m - 1], '—', '—', '—', '—', '—', '—', '—', '—', '—', '—', '—', '—', '—']);
       }
     }
 
     doc.moveTo(startX, y - 2).lineTo(startX + colWidths.reduce((a, b) => a + b, 0), y - 2).strokeColor('#333').stroke();
     y += 4;
     drawRow([
-      'TOTAL', fmt(totals.basic), fmt(totals.allowances), fmt(totals.gross),
-      fmt(totals.nssf), fmt(totals.taxable), fmt(totals.tax), fmt(totals.relief), fmt(totals.paye),
+      'TOTAL', fmt(totals.gross), '0.00', '0.00', fmt(totals.totalGross),
+      fmt(totals.nssf), fmt(totals.pension), fmt(totals.sha), fmt(totals.housing), fmt(totals.deductions),
+      fmt(totals.chargeable), fmt(totals.tax), fmt(totals.relief), fmt(totals.paye),
     ], { bold: true });
 
-    doc.font('Helvetica').fontSize(8).fillColor('#888').text(
-      'This is a computed summary generated from payroll records, not an official KRA-issued document. ' +
+    y += 14;
+    doc.font('Helvetica').fontSize(7).fillColor('#555').text(
+      'B (Benefits Non-Cash) and C (Value of Quarters) are not currently tracked by this system and show as 0.00 — add manually if applicable to this employee. ' +
+      'G (Total Deductions) = NSSF + Pension + SHA + Housing Levy. H (Chargeable Pay) is what PAYE is actually calculated on.',
+      startX, y, { width: pageWidth - startX * 2 }
+    );
+
+    doc.font('Helvetica').fontSize(7.5).fillColor('#888').text(
+      'This is a computed summary generated from payroll records, following the P9A format — not an official KRA-issued document. ' +
       'Reconcile against PAYE returns filed on iTax before distributing to the employee.',
-      40, 540, { width: 760 }
+      startX, doc.page.height - 40, { width: pageWidth - startX * 2 }
     );
 
     doc.end();
