@@ -117,7 +117,6 @@ function showApp() {
     if (salaryHeader) salaryHeader.classList.add('hidden');
   }
   maybeRefreshSession();
-  loadEmployees();
 }
 
 function showLanding() {
@@ -263,6 +262,7 @@ $$('.nav-link').forEach((btn) => {
     btn.classList.add('active');
     $$('.panel').forEach((p) => p.classList.add('hidden'));
     $(`#panel-${btn.dataset.view}`).classList.remove('hidden');
+    if (btn.dataset.view === 'employees') loadEmployees();
     if (btn.dataset.view === 'history') loadHistory();
     if (btn.dataset.view === 'p9') loadP9EmployeeOptions();
     if (btn.dataset.view === 'leave') initLeaveTab();

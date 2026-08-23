@@ -656,3 +656,8 @@ textarea:focus {
 .checklist-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 13.5px; border-bottom: 1px solid var(--rule); }
 .checklist-row:last-child { border-bottom: none; }
 .checklist-row input[type="checkbox"] { width: 17px; height: 17px; }
+
+.welcome-block { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 60px 20px; }
+.welcome-logo { width: 64px; height: auto; color: var(--brass); margin-bottom: 20px; }
+.welcome-block h1 { font-family: var(--font-display); font-size: 26px; color: var(--forest); margin: 0 0 8px; }
+.welcome-sub { color: var(--ink-soft); font-size: 15px; margin: 0; }

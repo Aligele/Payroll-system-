@@ -6,7 +6,7 @@
 <title>Ledger — Payroll</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260822d" />
+<link rel="stylesheet" href="css/style.css?v=20260822e" />
 </head>
 <body>
 <div class="flag-page-bg" aria-hidden="true"></div>
@@ -209,8 +209,10 @@
   <aside class="sidebar" id="sidebar">
     <div class="brand"><svg class="logo-mark" viewBox="0 0 100 118" aria-hidden="true"><use href="#gt-shield-logo"/></svg> Ledger</div>
     <nav>
+      <button class="nav-link active" data-view="dashboard"><svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-employees"/></svg> Dashboard</button>
+
       <div class="nav-section-label">HR</div>
-      <button class="nav-link active" data-view="employees"><svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-employees"/></svg> Employees</button>
+      <button class="nav-link" data-view="employees"><svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-employees"/></svg> Employees</button>
       <button class="nav-link" data-view="leave"><svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-leave"/></svg> Leave</button>
       <button class="nav-link" data-view="attendance"><svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-attendance"/></svg> Attendance</button>
       <button class="nav-link" data-view="performance"><svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-performance"/></svg> Performance</button>
@@ -234,7 +236,15 @@
   <main class="content">
 
     <!-- EMPLOYEES -->
-    <section id="panel-employees" class="panel">
+    <section id="panel-dashboard" class="panel">
+      <div class="welcome-block">
+        <svg class="logo-mark welcome-logo" viewBox="0 0 100 118" aria-hidden="true"><use href="#gt-shield-logo"/></svg>
+        <h1>Welcome to G-Tech Africa Ltd</h1>
+        <p class="welcome-sub">HR and Payroll Solution</p>
+      </div>
+    </section>
+
+    <section id="panel-employees" class="panel hidden">
       <div class="panel-head">
         <h2>Employees</h2>
         <button class="btn btn-primary" id="add-employee-btn">+ Add employee</button>
@@ -605,6 +615,6 @@
   </div>
 </div>
 
-<script src="js/app.js?v=20260822d"></script>
+<script src="js/app.js?v=20260822e"></script>
 </body>
 </html>
