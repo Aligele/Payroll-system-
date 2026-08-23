@@ -265,6 +265,44 @@ Benefits Non-Cash and Value of Quarters aren't currently tracked by the
 system and show as 0.00; add them manually on the printed form if they
 apply to a given employee.
 
+## Loans, offboarding, audit log, journal export, employee self-service
+
+- **Staff loans** (Loans tab, admin/staff only) — record a principal and
+  monthly deduction; payroll applies it automatically every run, capped
+  at whatever balance remains, and marks the loan paid off at zero.
+- **Offboarding checklist** — auto-seeded when an employee is terminated
+  (return assets, final payslip, Certificate of Service, revoke access,
+  clear loan balance, exit interview), shown in their detail view.
+- **Audit log** (Users tab) — payroll runs, remittance payments, employee
+  terminations, and user/role changes, with who and when.
+- **Accounting journal export** — "Download accounting journal CSV" in
+  Payroll History, a standard double-entry journal (Dr Salaries Expense,
+  Cr PAYE/NSSF/SHA/Housing Levy/Loan/Net Salaries Payable) for QuickBooks
+  or Xero's generic journal import. Debits and credits are checked to
+  balance before the file is ever sent.
+- **Compliance calendar** (Compliance tab) — the next PAYE/SHA/NSSF/
+  Housing Levy filing deadline (always the 9th of the month, per KRA's
+  unified filing cycle) and WIBA renewal countdown, computed live.
+- **Employee self-service** — a separate `employee` role and login,
+  scoped to `/api/me/*`: an employee can see their own profile, download
+  their own payslips and P9, and submit their own leave requests, but
+  cannot reach any other employee's data or any admin/HR route. Enable it
+  from an employee's detail view ("Enable self-service login") — this
+  requires an email on their record and returns a one-time temporary
+  password to hand to them directly.
+
+Every route that used to be open to any authenticated user (employees,
+leave, attendance, overtime, performance, documents, compliance, wiba)
+is now explicitly gated to admin/staff/hr_staff, specifically to keep
+the new lower-trust `employee` role out of them — self-service employees
+only ever reach their own data through `/api/me/*`.
+
+**Deliberately not built:** true multi-tenancy (multiple separate
+companies safely isolated on one deployment). That's a materially
+different, higher-stakes change — done carelessly, it's the one mistake
+here that could actually leak one company's data into another's — so it
+wasn't rushed in alongside everything else.
+
 ## Overtime, remittances, P10, Certificate of Service, WIBA
 
 Six Employment Act / statutory features, all admin+staff except where noted:

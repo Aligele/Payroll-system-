@@ -94,8 +94,10 @@ document.addEventListener('visibilitychange', () => {
 });
 
 function showApp() {
+  if (state.user && state.user.role === 'employee') { showSelfService(); return; }
   $('#view-landing').classList.add('hidden');
   $('#view-login').classList.add('hidden');
+  $('#view-self-service').classList.add('hidden');
   $('#view-app').classList.remove('hidden');
   $('#user-name').textContent = state.user ? state.user.name : '';
   if (!state.user || state.user.role !== 'admin') {
@@ -105,7 +107,7 @@ function showApp() {
   if (state.user && state.user.role === 'hr_staff') {
     // hr_staff has no payroll/salary access — hide those nav items and form fields
     // (the backend enforces this independently; this just keeps the UI honest).
-    ['run-payroll', 'history', 'p9'].forEach((view) => {
+    ['run-payroll', 'history', 'p9', 'loans'].forEach((view) => {
       const link = document.querySelector(`.nav-link[data-view="${view}"]`);
       if (link) link.classList.add('hidden');
     });
@@ -121,12 +123,96 @@ function showApp() {
 function showLanding() {
   $('#view-app').classList.add('hidden');
   $('#view-login').classList.add('hidden');
+  $('#view-self-service').classList.add('hidden');
   $('#view-landing').classList.remove('hidden');
 }
+
+async function showSelfService() {
+  $('#view-landing').classList.add('hidden');
+  $('#view-login').classList.add('hidden');
+  $('#view-app').classList.add('hidden');
+  $('#view-self-service').classList.remove('hidden');
+  $('#ss-user-name').textContent = state.user ? state.user.name : '';
+  maybeRefreshSession();
+
+  try {
+    const profile = await api('/me/profile');
+    $('#ss-profile').innerHTML = `
+      <div class="ss-profile-row"><span>Employee No.</span><span>${profile.employee_no}</span></div>
+      <div class="ss-profile-row"><span>Name</span><span>${profile.first_name} ${profile.last_name}</span></div>
+      <div class="ss-profile-row"><span>Department</span><span>${profile.department || '—'}</span></div>
+      <div class="ss-profile-row"><span>Job Title</span><span>${profile.job_title || '—'}</span></div>
+      <div class="ss-profile-row"><span>Basic Salary</span><span>${fmtMoney(profile.basic_salary)}</span></div>
+      <div class="ss-profile-row"><span>Status</span><span>${profile.status}</span></div>
+    `;
+  } catch (err) { reportError(err); }
+
+  try {
+    const payslips = await api('/me/payslips');
+    $('#ss-payslips-tbody').innerHTML = payslips.map((p) => `
+      <tr>
+        <td>${MONTHS[p.period_month - 1]} ${p.period_year}</td>
+        <td class="num">${fmtMoney(p.gross_pay)}</td>
+        <td class="num">${fmtMoney(p.net_pay)}</td>
+        <td><button type="button" class="link-btn" data-payslip-id="${p.id}">Download</button></td>
+      </tr>`).join('') || '<tr><td colspan="4" class="muted">No payslips yet.</td></tr>';
+    $$('[data-payslip-id]').forEach((btn) => {
+      btn.addEventListener('click', () => downloadFile(`/me/payslips/${btn.dataset.payslipId}/pdf`, 'payslip.pdf'));
+    });
+  } catch (err) { reportError(err); }
+
+  try {
+    const leaveTypes = await api('/me/leave-types');
+    $('#ss-leave-type').innerHTML = leaveTypes.map((t) => `<option value="${t.id}">${t.name}</option>`).join('');
+    loadMyLeave();
+  } catch (err) { reportError(err); }
+}
+
+async function loadMyLeave() {
+  const requests = await api('/me/leave');
+  $('#ss-leave-tbody').innerHTML = requests.map((r) => `
+    <tr>
+      <td>${r.leave_type_name}</td>
+      <td>${r.start_date.slice(0, 10)} → ${r.end_date.slice(0, 10)}</td>
+      <td class="num">${r.days}</td>
+      <td><span class="status-pill status-${r.status === 'approved' ? 'active' : r.status === 'rejected' ? 'terminated' : 'draft'}">${r.status}</span></td>
+    </tr>`).join('') || '<tr><td colspan="4" class="muted">No leave requests yet.</td></tr>';
+}
+
+$('#ss-leave-submit').addEventListener('click', async () => {
+  $('#ss-leave-error').textContent = '';
+  try {
+    await api('/me/leave', {
+      method: 'POST',
+      body: JSON.stringify({
+        leaveTypeId: $('#ss-leave-type').value,
+        startDate: $('#ss-leave-start').value,
+        endDate: $('#ss-leave-end').value,
+        reason: $('#ss-leave-reason').value.trim() || null,
+      }),
+    });
+    $('#ss-leave-start').value = '';
+    $('#ss-leave-end').value = '';
+    $('#ss-leave-reason').value = '';
+    loadMyLeave();
+  } catch (err) {
+    $('#ss-leave-error').textContent = err.message;
+  }
+});
+
+$('#ss-logout-btn').addEventListener('click', () => {
+  state.token = null;
+  state.user = null;
+  localStorage.removeItem('payroll_token');
+  localStorage.removeItem('payroll_user');
+  $('#view-self-service').classList.add('hidden');
+  showLanding();
+});
 
 function showLogin() {
   $('#view-app').classList.add('hidden');
   $('#view-landing').classList.add('hidden');
+  $('#view-self-service').classList.add('hidden');
   $('#view-login').classList.remove('hidden');
 }
 
@@ -182,8 +268,9 @@ $$('.nav-link').forEach((btn) => {
     if (btn.dataset.view === 'leave') initLeaveTab();
     if (btn.dataset.view === 'attendance') initAttendanceTab();
     if (btn.dataset.view === 'performance') initPerformanceTab();
-    if (btn.dataset.view === 'users') loadUsers();
+    if (btn.dataset.view === 'users') { loadUsers(); loadAuditLog(); }
     if (btn.dataset.view === 'compliance') initComplianceTab();
+    if (btn.dataset.view === 'loans') initLoansTab();
     closeDrawer(); // no-op on desktop, closes the off-canvas menu on mobile
   });
 });
@@ -297,7 +384,46 @@ async function openEmployeeDetail(emp) {
   $('#ed-meta').textContent = [emp.job_title, emp.department, emp.employee_no].filter(Boolean).join(' · ');
   $('#employee-detail-modal').classList.remove('hidden');
   await loadEmployeeDocuments();
+
+  const offboardingSection = $('#ed-offboarding-section');
+  if (emp.status === 'terminated') {
+    offboardingSection.classList.remove('hidden');
+    await loadOffboardingChecklist();
+  } else {
+    offboardingSection.classList.add('hidden');
+  }
 }
+
+async function loadOffboardingChecklist() {
+  const items = await api(`/employees/${currentDetailEmployeeId}/offboarding`);
+  $('#ed-offboarding-list').innerHTML = items.map((item) => `
+    <label class="checklist-row">
+      <input type="checkbox" data-item-id="${item.id}" ${item.completed ? 'checked' : ''} />
+      <span>${item.item}</span>
+    </label>
+  `).join('');
+  $$('#ed-offboarding-list input[type="checkbox"]').forEach((cb) => {
+    cb.addEventListener('change', async () => {
+      try {
+        await api(`/employees/${currentDetailEmployeeId}/offboarding/${cb.dataset.itemId}`, {
+          method: 'PATCH', body: JSON.stringify({ completed: cb.checked }),
+        });
+      } catch (err) {
+        reportError(err);
+        cb.checked = !cb.checked;
+      }
+    });
+  });
+}
+
+$('#ed-enable-self-service').addEventListener('click', async () => {
+  try {
+    const result = await api(`/employees/${currentDetailEmployeeId}/enable-self-service`, { method: 'POST' });
+    alert(`Self-service login created.\n\nEmail: ${result.email}\nTemporary password: ${result.temporaryPassword}\n\nShare this with the employee directly — it will not be shown again.`);
+  } catch (err) {
+    reportError(err);
+  }
+});
 
 async function loadEmployeeDocuments() {
   const docs = await api(`/employees/${currentDetailEmployeeId}/documents`);
@@ -564,6 +690,82 @@ async function loadOvertimeEntries() {
 
 async function initComplianceTab() {
   loadWibaPolicies();
+  loadComplianceCalendar();
+}
+
+async function loadComplianceCalendar() {
+  const items = await api('/compliance/calendar');
+  $('#compliance-calendar').innerHTML = items.map((item) => {
+    const urgent = item.daysUntil !== null && item.daysUntil <= 5;
+    const missing = item.type === 'wiba_missing';
+    return `
+      <div class="review-card">
+        <div class="review-head">
+          <strong>${item.label}</strong>
+          ${missing ? '<span class="status-pill status-terminated" style="margin-left:auto;">not on file</span>' :
+            `<span class="status-pill status-${urgent ? 'terminated' : 'active'}" style="margin-left:auto;">${item.daysUntil} day${item.daysUntil === 1 ? '' : 's'}</span>`}
+        </div>
+        ${item.dueDate ? `<div class="muted">Due ${item.dueDate}</div>` : ''}
+        </div>
+    `;
+  }).join('');
+}
+
+/* ---------------- Loans ---------------- */
+
+async function initLoansTab() {
+  await populateEmployeeSelect($('#loan-employee'));
+  if (!$('#loan-date').value) $('#loan-date').value = new Date().toISOString().slice(0, 10);
+  loadLoans();
+}
+
+$('#loan-submit').addEventListener('click', async () => {
+  $('#loan-error').textContent = '';
+  try {
+    await api('/loans', {
+      method: 'POST',
+      body: JSON.stringify({
+        employeeId: $('#loan-employee').value,
+        principalAmount: Number($('#loan-principal').value),
+        monthlyDeduction: Number($('#loan-monthly').value),
+        disbursedDate: $('#loan-date').value,
+        notes: $('#loan-notes').value.trim() || null,
+      }),
+    });
+    $('#loan-principal').value = '';
+    $('#loan-monthly').value = '';
+    $('#loan-notes').value = '';
+    loadLoans();
+  } catch (err) {
+    $('#loan-error').textContent = err.message;
+  }
+});
+
+async function loadLoans() {
+  const loans = await api('/loans');
+  $('#loans-tbody').innerHTML = loans.map((l) => `
+    <tr>
+      <td>${l.first_name} ${l.last_name}</td>
+      <td class="num">${fmtMoney(l.principal_amount)}</td>
+      <td class="num">${fmtMoney(l.balance_remaining)}</td>
+      <td class="num">${fmtMoney(l.monthly_deduction)}</td>
+      <td><span class="status-pill status-${l.status === 'active' ? 'active' : l.status === 'paid_off' ? 'draft' : 'terminated'}">${l.status.replace('_', ' ')}</span></td>
+    </tr>`).join('') || '<tr><td colspan="5" class="muted">No loans recorded.</td></tr>';
+}
+
+/* ---------------- Audit log ---------------- */
+
+async function loadAuditLog() {
+  const logs = await api('/users/audit-log');
+  $('#audit-log-list').innerHTML = logs.map((l) => `
+    <div class="review-card">
+      <div class="review-head">
+        <strong>${l.action.replace(/\./g, ' ')}</strong>
+        <span class="muted" style="margin-left:auto; font-size:12px;">${new Date(l.created_at).toLocaleString('en-KE')}</span>
+      </div>
+      <div class="muted">${l.user_name || 'System'} · ${l.entity_type}${l.entity_id ? ' #' + l.entity_id : ''}</div>
+    </div>
+  `).join('') || '<p class="muted">No audit log entries yet.</p>';
 }
 
 $('#wiba-submit').addEventListener('click', async () => {
@@ -740,6 +942,7 @@ async function loadRunDetail(runId) {
       <button class="btn btn-ghost" id="export-bank-btn">Download bank payment CSV</button>
       <button class="btn btn-ghost" id="export-p10-btn">Download P10 monthly return</button>
       <button class="btn btn-ghost" id="export-kra-csv-btn">Download KRA PAYE return CSV</button>
+      <button class="btn btn-ghost" id="export-journal-btn">Download accounting journal CSV</button>
     </div>
     <p class="form-error" id="export-warning"></p>
     <table class="ledger-table">
@@ -809,6 +1012,14 @@ async function loadRunDetail(runId) {
       const { skipped, untrackedNote } = await downloadFile(`/payroll/runs/${runId}/export/kra-paye`, 'kra-paye-return.csv');
       const parts = [describeSkipped(skipped), untrackedNote].filter(Boolean);
       $('#export-warning').textContent = parts.join(' ');
+    } catch (err) {
+      reportError(err);
+    }
+  });
+  $('#export-journal-btn').addEventListener('click', async () => {
+    $('#export-warning').textContent = '';
+    try {
+      await downloadFile(`/payroll/runs/${runId}/export/journal`, 'journal.csv');
     } catch (err) {
       reportError(err);
     }

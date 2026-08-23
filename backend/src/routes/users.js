@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { logAudit, listAuditLog } = require('../services/auditLog');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -31,6 +32,7 @@ router.post('/', async (req, res) => {
        RETURNING id, name, email, role, is_active, created_at`,
       [name, email, hash, finalRole]
     );
+    await logAudit(req.user.sub, 'user.create', 'user', rows[0].id, { email, role: finalRole });
     res.status(201).json(rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'A user with this email already exists' });
@@ -76,11 +78,18 @@ router.put('/:id', async (req, res) => {
       values
     );
     if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    await logAudit(req.user.sub, 'user.update', 'user', rows[0].id, { role, isActive });
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to update user' });
   }
+});
+
+router.get('/audit-log', async (req, res) => {
+  const before = req.query.before || null;
+  const logs = await listAuditLog({ limit: 50, before });
+  res.json(logs);
 });
 
 module.exports = router;

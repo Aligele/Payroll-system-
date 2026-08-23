@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const { calculatePayslip } = require('./statutoryDeductions');
+const { applyLoanRepayments, releaseLoanRepayments } = require('./loanService');
 
 async function getActiveRateSet(client) {
   const { rows } = await client.query(
@@ -42,6 +43,7 @@ async function runPayroll({ periodMonth, periodYear, createdBy }) {
       // Release any overtime entries this run had already claimed, so a
       // recompute picks them up again instead of silently losing them.
       await client.query('UPDATE overtime_entries SET payroll_run_id = NULL WHERE payroll_run_id = $1', [payrollRun.id]);
+      await releaseLoanRepayments(client, payrollRun.id);
       await client.query('DELETE FROM payslips WHERE payroll_run_id = $1', [payrollRun.id]);
       await client.query(
         'UPDATE payroll_runs SET status = $1, rate_set_id = $2, run_date = now() WHERE id = $3',
@@ -81,11 +83,14 @@ async function runPayroll({ periodMonth, periodYear, createdBy }) {
         { weekday: 0, restDayHoliday: 0 }
       );
 
+      const { total: loanRepaymentTotal, applied: loanRepaymentLines } = await applyLoanRepayments(client, emp.id, payrollRun.id);
+      const otherDeductions = [...(emp.other_deductions || []), ...loanRepaymentLines];
+
       const result = calculatePayslip(
         {
           basicSalary: Number(emp.basic_salary),
           allowances: emp.allowances || [],
-          otherDeductions: emp.other_deductions || [],
+          otherDeductions,
           pensionContribution: Number(emp.pension_contribution || 0),
           overtimeHours,
         },

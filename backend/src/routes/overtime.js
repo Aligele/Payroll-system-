@@ -1,9 +1,10 @@
 const express = require('express');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
 const pool = require('../config/db');
 
 const router = express.Router();
 router.use(requireAuth);
+router.use(requireRole('admin', 'staff', 'hr_staff')); // explicit allow-list — excludes the 'employee' self-service role from all general HR/admin routes
 
 // List overtime entries. ?employeeId= and ?applied=false are optional filters.
 router.get('/', async (req, res) => {

@@ -8,6 +8,8 @@ const { calculatePayslip } = require('../services/statutoryDeductions');
 const { renderPayslipPdf, renderP9Pdf, renderP10Pdf } = require('../services/pdfGenerator');
 const { generateMpesaCsv, generateBankCsv } = require('../services/paymentExport');
 const { generateKraPayeCsv } = require('../services/kraPayeExport');
+const { generateJournalCsv } = require('../services/journalExport');
+const { logAudit } = require('../services/auditLog');
 const pool = require('../config/db');
 
 const router = express.Router();
@@ -35,6 +37,9 @@ router.post('/run', async (req, res) => {
       return res.status(400).json({ error: 'periodMonth (1-12) and periodYear are required' });
     }
     const result = await runPayroll({ periodMonth, periodYear, createdBy: req.user.sub });
+    await logAudit(req.user.sub, 'payroll.run', 'payroll_run', result.payrollRun.id, {
+      periodMonth, periodYear, employeeCount: result.payslips.length,
+    });
     res.status(201).json(result);
   } catch (err) {
     console.error(err);
@@ -194,6 +199,31 @@ router.get('/runs/:id/export/kra-paye', async (req, res) => {
   }
 });
 
+const MONTHS_FOR_JOURNAL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+// Generic double-entry journal CSV for QuickBooks/Xero import.
+router.get('/runs/:id/export/journal', async (req, res) => {
+  try {
+    const result = await getPayrollRun(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Payroll run not found' });
+
+    const { csv, balanced } = generateJournalCsv(result.payrollRun, result.payslips, {
+      periodLabel: `${MONTHS_FOR_JOURNAL[result.payrollRun.period_month - 1]} ${result.payrollRun.period_year} Payroll`,
+    });
+    if (!balanced) {
+      console.error(`Journal export for run ${req.params.id} did not balance — refusing to send.`);
+      return res.status(500).json({ error: 'Journal entry did not balance — this has been logged, please contact support rather than using this file.' });
+    }
+    const filename = `journal-run-${req.params.id}.csv`;
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csv);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to generate journal export' });
+  }
+});
+
 // Monthly PAYE return (P10) for a processed run.
 router.get('/runs/:id/p10', async (req, res) => {
   try {
@@ -237,6 +267,7 @@ router.post('/runs/:id/remittances/:type/pay', async (req, res) => {
       referenceNumber, paidDate, notes, paidBy: req.user.sub,
     });
     if (!updated) return res.status(404).json({ error: 'Remittance record not found for this run/type' });
+    await logAudit(req.user.sub, 'remittance.mark_paid', 'remittance', updated.id, { type, referenceNumber, paidDate });
     res.json(updated);
   } catch (err) {
     console.error(err);

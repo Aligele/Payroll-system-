@@ -1,10 +1,15 @@
 const express = require('express');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
 const { renderCertificateOfServicePdf } = require('../services/pdfGenerator');
+const { createDefaultChecklist, getChecklist, toggleItem } = require('../services/offboardingService');
+const { logAudit } = require('../services/auditLog');
 
 const router = express.Router();
 router.use(requireAuth);
+router.use(requireRole('admin', 'staff', 'hr_staff')); // explicit allow-list — excludes the 'employee' self-service role; that role gets its own scoped routes in selfService.js
 
 // Fields hr_staff can't see or set — compensation and bank details are
 // payroll's domain, not HR's. Everything else on the employee record
@@ -122,8 +127,26 @@ router.put('/:id', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
-  await pool.query(`UPDATE employees SET status = 'terminated', updated_at = now() WHERE id = $1`, [req.params.id]);
+  const { rows } = await pool.query(
+    `UPDATE employees SET status = 'terminated', updated_at = now() WHERE id = $1 RETURNING first_name, last_name`,
+    [req.params.id]
+  );
+  if (rows.length === 0) return res.status(404).json({ error: 'Employee not found' });
+  await createDefaultChecklist(req.params.id);
+  await logAudit(req.user.sub, 'employee.terminate', 'employee', req.params.id, { name: `${rows[0].first_name} ${rows[0].last_name}` });
   res.status(204).send();
+});
+
+// Offboarding checklist — auto-seeded on termination above.
+router.get('/:id/offboarding', async (req, res) => {
+  const items = await getChecklist(req.params.id);
+  res.json(items);
+});
+
+router.patch('/:employeeId/offboarding/:itemId', async (req, res) => {
+  const updated = await toggleItem(req.params.itemId, !!req.body.completed, req.user.sub);
+  if (!updated) return res.status(404).json({ error: 'Checklist item not found' });
+  res.json(updated);
 });
 
 // Permanently removes an employee record — only for correcting a mistaken
@@ -165,6 +188,44 @@ router.get('/:id/certificate-of-service', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to generate certificate of service' });
+  }
+});
+
+// Enable employee self-service login — admin/staff only (this router's
+// own gate already restricts to admin/staff/hr_staff; require admin/staff
+// specifically here since it creates a login credential).
+router.post('/:id/enable-self-service', requireRole('admin', 'staff'), async (req, res) => {
+  try {
+    const { rows: empRows } = await pool.query('SELECT * FROM employees WHERE id = $1', [req.params.id]);
+    if (empRows.length === 0) return res.status(404).json({ error: 'Employee not found' });
+    const employee = empRows[0];
+    if (!employee.email) {
+      return res.status(400).json({ error: 'This employee has no email on record — add one first, self-service login needs it.' });
+    }
+
+    const { rows: existing } = await pool.query('SELECT id FROM users WHERE employee_id = $1', [req.params.id]);
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'This employee already has a self-service login. Use the password reset flow instead of creating a new one.' });
+    }
+
+    const tempPassword = crypto.randomBytes(9).toString('base64').replace(/[+/=]/g, '').slice(0, 12);
+    const hash = await bcrypt.hash(tempPassword, 10);
+    const { rows } = await pool.query(
+      `INSERT INTO users (name, email, password_hash, role, employee_id)
+       VALUES ($1,$2,$3,'employee',$4) RETURNING id, name, email`,
+      [`${employee.first_name} ${employee.last_name}`, employee.email, hash, req.params.id]
+    );
+    await logAudit(req.user.sub, 'employee.enable_self_service', 'employee', req.params.id, { userId: rows[0].id });
+
+    // Temp password is returned once, here — same pattern as the existing
+    // admin password-reset flow. It is not recoverable after this response;
+    // communicate it to the employee directly, and have them change it once
+    // logged in (no self-service change-password route exists yet).
+    res.status(201).json({ email: rows[0].email, temporaryPassword: tempPassword });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'A login with this email already exists' });
+    console.error(err);
+    res.status(500).json({ error: 'Failed to enable self-service login' });
   }
 });
 

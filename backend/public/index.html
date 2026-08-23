@@ -6,7 +6,7 @@
 <title>Ledger — Payroll</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260822c" />
+<link rel="stylesheet" href="css/style.css?v=20260822d" />
 </head>
 <body>
 <div class="flag-page-bg" aria-hidden="true"></div>
@@ -127,6 +127,48 @@
   </div>
 </div>
 
+<!-- SELF-SERVICE VIEW (employee role) -->
+<div id="view-self-service" class="hidden">
+  <header class="topbar">
+    <div class="auth-mark"><svg class="logo-mark" viewBox="0 0 100 118" aria-hidden="true"><use href="#gt-shield-logo"/></svg> Ledger</div>
+    <div class="topbar-right">
+      <span id="ss-user-name"></span>
+      <button type="button" class="btn btn-ghost" id="ss-logout-btn">Sign out</button>
+    </div>
+  </header>
+
+  <main class="ss-main">
+    <section class="ss-card">
+      <h2>My Profile</h2>
+      <div id="ss-profile"></div>
+    </section>
+
+    <section class="ss-card">
+      <h2>My Payslips</h2>
+      <table class="ledger-table">
+        <thead><tr><th>Period</th><th class="num">Gross</th><th class="num">Net pay</th><th></th></tr></thead>
+        <tbody id="ss-payslips-tbody"></tbody>
+      </table>
+    </section>
+
+    <section class="ss-card">
+      <h2>My Leave</h2>
+      <div class="form-grid">
+        <label>Leave type <select id="ss-leave-type"></select></label>
+        <label>Start date <input type="date" id="ss-leave-start" /></label>
+        <label>End date <input type="date" id="ss-leave-end" /></label>
+        <label>Reason (optional) <input type="text" id="ss-leave-reason" /></label>
+      </div>
+      <button type="button" class="btn btn-primary" id="ss-leave-submit">Request leave</button>
+      <p class="form-error" id="ss-leave-error"></p>
+      <table class="ledger-table">
+        <thead><tr><th>Type</th><th>Dates</th><th class="num">Days</th><th>Status</th></tr></thead>
+        <tbody id="ss-leave-tbody"></tbody>
+      </table>
+    </section>
+  </main>
+</div>
+
 <!-- LOGIN VIEW -->
 <div id="view-login" class="auth-screen hidden">
   <div class="auth-card">
@@ -178,6 +220,7 @@
       <button class="nav-link" data-view="run-payroll"><svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-payroll"/></svg> Run payroll</button>
       <button class="nav-link" data-view="history"><svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-history"/></svg> Payroll history</button>
       <button class="nav-link" data-view="p9"><svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-p9"/></svg> P9 forms</button>
+      <button class="nav-link" data-view="loans"><svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-p9"/></svg> Loans</button>
 
       <div class="nav-section-label" id="nav-admin-label">ADMIN</div>
       <button class="nav-link" data-view="users" id="nav-users"><svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-users"/></svg> Users</button>
@@ -354,7 +397,11 @@
       <div class="panel-head">
         <h2>Compliance</h2>
       </div>
-      <p class="muted">Work Injury Benefits Act (WIBA) cover is mandatory employer insurance — tracked here at the company level, not per employee.</p>
+
+      <h3 class="subhead">Upcoming deadlines</h3>
+      <div id="compliance-calendar"></div>
+
+      <p class="muted" style="margin-top:24px;">Work Injury Benefits Act (WIBA) cover is mandatory employer insurance — tracked here at the company level, not per employee.</p>
 
       <h3 class="subhead">Add a policy</h3>
       <div class="form-grid">
@@ -396,6 +443,31 @@
       <p class="form-error" id="p9-error"></p>
     </section>
 
+    <!-- LOANS -->
+    <section id="panel-loans" class="panel hidden">
+      <div class="panel-head">
+        <h2>Staff Loans &amp; Advances</h2>
+      </div>
+      <p class="muted">A monthly deduction is applied automatically the next time payroll runs, capped at whatever balance remains — the loan is marked paid off once it reaches zero.</p>
+
+      <h3 class="subhead">New loan</h3>
+      <div class="form-grid">
+        <label>Employee <select id="loan-employee"></select></label>
+        <label>Principal amount (KES) <input type="number" id="loan-principal" min="0" step="0.01" /></label>
+        <label>Monthly deduction (KES) <input type="number" id="loan-monthly" min="0" step="0.01" /></label>
+        <label>Disbursed date <input type="date" id="loan-date" /></label>
+        <label>Notes <input type="text" id="loan-notes" /></label>
+      </div>
+      <button type="button" class="btn btn-primary" id="loan-submit">Record loan</button>
+      <p class="form-error" id="loan-error"></p>
+
+      <h3 class="subhead">All loans</h3>
+      <table class="ledger-table">
+        <thead><tr><th>Employee</th><th class="num">Principal</th><th class="num">Balance</th><th class="num">Monthly</th><th>Status</th></tr></thead>
+        <tbody id="loans-tbody"></tbody>
+      </table>
+    </section>
+
     <!-- USERS (admin only) -->
     <section id="panel-users" class="panel hidden">
       <div class="panel-head">
@@ -426,6 +498,10 @@
         <tbody id="users-tbody"></tbody>
       </table>
       </div>
+
+      <h3 class="subhead">Audit log</h3>
+      <p class="muted">Recent sensitive actions: employee terminations, payroll runs, remittance payments, and user/role changes.</p>
+      <div id="audit-log-list"></div>
     </section>
 
   </main>
@@ -439,6 +515,12 @@
       <p class="muted" id="ed-meta"></p>
 
       <button type="button" class="btn btn-ghost btn-block" id="ed-certificate" style="margin-bottom:20px;">Download Certificate of Service</button>
+      <button type="button" class="btn btn-ghost btn-block" id="ed-enable-self-service" style="margin-bottom:20px;">Enable self-service login</button>
+
+      <div id="ed-offboarding-section" class="hidden">
+        <h4 class="subhead">Offboarding checklist</h4>
+        <div id="ed-offboarding-list"></div>
+      </div>
 
       <h4 class="subhead">Documents</h4>
       <div class="table-scroll">
@@ -523,6 +605,6 @@
   </div>
 </div>
 
-<script src="js/app.js?v=20260822c"></script>
+<script src="js/app.js?v=20260822d"></script>
 </body>
 </html>

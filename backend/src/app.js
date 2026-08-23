@@ -13,6 +13,9 @@ const documentRoutes = require('./routes/documents');
 const userRoutes = require('./routes/users');
 const overtimeRoutes = require('./routes/overtime');
 const wibaRoutes = require('./routes/wiba');
+const complianceRoutes = require('./routes/compliance');
+const loanRoutes = require('./routes/loans');
+const selfServiceRoutes = require('./routes/selfService');
 
 const app = express();
 
@@ -31,6 +34,9 @@ app.use('/api/employees/:employeeId/documents', documentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/overtime', overtimeRoutes);
 app.use('/api/wiba', wibaRoutes);
+app.use('/api/compliance', complianceRoutes);
+app.use('/api/loans', loanRoutes);
+app.use('/api/me', selfServiceRoutes);
 
 // Serve the frontend (static files) — lives in backend/public so it deploys
 // alongside the API on platforms (like Vercel) that only upload this directory.

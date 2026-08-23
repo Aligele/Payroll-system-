@@ -8,7 +8,7 @@ const router = express.Router();
 
 function signToken(user) {
   return jwt.sign(
-    { sub: user.id, email: user.email, role: user.role, name: user.name },
+    { sub: user.id, email: user.email, role: user.role, name: user.name, employeeId: user.employee_id || null },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
   );
@@ -32,7 +32,7 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'This account has been deactivated' });
     }
 
-    res.json({ token: signToken(user), user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+    res.json({ token: signToken(user), user: { id: user.id, name: user.name, email: user.email, role: user.role, employeeId: user.employee_id || null } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Login failed' });
@@ -51,7 +51,7 @@ router.post('/refresh', requireAuth, async (req, res) => {
     if (!user || user.is_active === false) {
       return res.status(403).json({ error: 'This account is no longer active' });
     }
-    res.json({ token: signToken(user), user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+    res.json({ token: signToken(user), user: { id: user.id, name: user.name, email: user.email, role: user.role, employeeId: user.employee_id || null } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to refresh session' });
